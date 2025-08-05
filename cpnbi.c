@@ -1,3 +1,5 @@
+#include<stdio.h>
+
 #ifdef _WIN32
 
 #define WIN32_LEAN_AND_MEAN
@@ -8,78 +10,132 @@
 static HANDLE hStdin;
 static DWORD orig_mode;
 
-void key_input_init() {
+void cpnbi_init() {
+	DWORD mode = 0;
+
 	hStdin = GetStdHandle(STD_INPUT_HANDLE);
 	GetConsoleMode(hStdin, &orig_mode);
-	SetConsoleMode(hStdin, ENABLE_PROCESSED_INPUT);
+	mode &= ~(ENABLE_LINE_INPUT | ENABLE_ECHO_INPUT); // optional
+	mode |= ENABLE_WINDOW_INPUT | ENABLE_PROCESSED_INPUT;
+	SetConsoleMode(hStdin, mode);
 }
 
-int key_input_poll(cpnbi_KeyEvent* out_event) {
-	DWORD count;
-	INPUT_RECORD record;
-	while (PeekConsoleInput(hStdin, &record, 1, &count) && count > 0) {
-		ReadConsoleInput(hStdin, &record, 1, &count);
-		if (record.EventType == CPNBI_KEY_EVENT && record.Event.cpnbi_KeyEvent.bKeyDown) {
-			WORD vk = record.Event.cpnbi_KeyEvent.wVirtualKeyCode;
-			DWORD ctrl = record.Event.cpnbi_KeyEvent.dwControlKeyState;
-			out_event->modifiers = CPNBI_MOD_NONE;
-			if (ctrl & SHIFT_PRESSED) out_event->modifiers |= MOD_SHIFT;
-			if (ctrl & LEFT_CTRL_PRESSED || ctrl & RIGHT_CTRL_PRESSED) out_event->modifiers |= MOD_CTRL;
-			if (ctrl & LEFT_ALT_PRESSED || ctrl & RIGHT_ALT_PRESSED) out_event->modifiers |= MOD_ALT;
-			
-			switch (vk) {
-			case VK_ESCAPE: out_event->key = CPNBI_KEY_ESCAPE; return 1;
-			case VK_RETURN: out_event->key = CPNBI_KEY_ENTER; return 1;
-			case VK_BACK:   out_event->key = CPNBI_KEY_BACKSPACE; return 1;
-			case VK_TAB:    out_event->key = CPNBI_KEY_TAB; return 1;
-			case VK_UP:     out_event->key = CPNBI_KEY_UP; return 1;
-			case VK_DOWN:   out_event->key = CPNBI_KEY_DOWN; return 1;
-			case VK_LEFT:   out_event->key = CPNBI_KEY_LEFT; return 1;
-			case VK_RIGHT:  out_event->key = CPNBI_KEY_RIGHT; return 1;
-			case VK_HOME:   out_event->key = CPNBI_KEY_HOME; return 1;
-			case VK_END:    out_event->key = CPNBI_KEY_END; return 1;
-			case VK_INSERT: out_event->key = CPNBI_KEY_INSERT; return 1;
-			case VK_DELETE: out_event->key = CPNBI_KEY_DELETE; return 1;
-			case VK_PRIOR:  out_event->key = CPNBI_KEY_PAGE_UP; return 1;
-			case VK_NEXT:   out_event->key = CPNBI_KEY_PAGE_DOWN; return 1;
-			case VK_F1:     out_event->key = CPNBI_KEY_F1; return 1;
-			case VK_F2:     out_event->key = CPNBI_KEY_F2; return 1;
-			case VK_F3:     out_event->key = CPNBI_KEY_F3; return 1;
-			case VK_F4:     out_event->key = CPNBI_KEY_F4; return 1;
-			case VK_F5:     out_event->key = CPNBI_KEY_F5; return 1;
-			case VK_F6:     out_event->key = CPNBI_KEY_F6; return 1;
-			case VK_F7:     out_event->key = CPNBI_KEY_F7; return 1;
-			case VK_F8:     out_event->key = CPNBI_KEY_F8; return 1;
-			case VK_F9:     out_event->key = CPNBI_KEY_F9; return 1;
-			case VK_F10:    out_event->key = CPNBI_KEY_F10; return 1;
-			case VK_F11:    out_event->key = CPNBI_KEY_F11; return 1;
-			case VK_F12:    out_event->key = CPNBI_KEY_F12; return 1;
-			default:
-			    if (record.Event.cpnbi_KeyEvent.uChar.AsciiChar >= 32) {
-			        out_event->key = CPNBI_KEY_CHAR;
-			        return 1;
-			    }
-			}
+int cpnbi__process_event(INPUT_RECORD* record) {
+	int key = CPNBI_KEY_NUL, mod = CPNBI_MOD_NONE;
+
+	if (record->EventType == KEY_EVENT 
+	&& record->Event.KeyEvent.bKeyDown) {
+		WORD vk = record->Event.KeyEvent.wVirtualKeyCode;
+		DWORD ctrl = record->Event.KeyEvent.dwControlKeyState;
+
+		if (ctrl & SHIFT_PRESSED) 
+			mod += CPNBI_MOD_SHIFT;
+		if (ctrl & LEFT_CTRL_PRESSED || ctrl & RIGHT_CTRL_PRESSED) 
+			mod += CPNBI_MOD_CTRL;
+		if (ctrl & LEFT_ALT_PRESSED || ctrl & RIGHT_ALT_PRESSED) 
+			mod += CPNBI_MOD_ALT;
+		
+		switch (vk) {
+		case VK_ESCAPE: key = CPNBI_KEY_ESCAPE; break;
+		case VK_RETURN: key = CPNBI_KEY_ENTER; break;
+		case VK_BACK:   key = CPNBI_KEY_BACKSPACE; break;
+		case VK_TAB:    key = CPNBI_KEY_TAB; break;
+		case VK_UP:     key = CPNBI_KEY_UP; break;
+		case VK_DOWN:   key = CPNBI_KEY_DOWN; break;
+		case VK_LEFT:   key = CPNBI_KEY_LEFT; break;
+		case VK_RIGHT:  key = CPNBI_KEY_RIGHT; break;
+		case VK_HOME:   key = CPNBI_KEY_HOME; break;
+		case VK_END:    key = CPNBI_KEY_END; break;
+		case VK_INSERT: key = CPNBI_KEY_INSERT; break;
+		case VK_DELETE: key = CPNBI_KEY_DELETE; break;
+		case VK_PRIOR:  key = CPNBI_KEY_PAGE_UP; break;
+		case VK_NEXT:   key = CPNBI_KEY_PAGE_DOWN; break;
+		case VK_F1:     key = CPNBI_KEY_F1; break;
+		case VK_F2:     key = CPNBI_KEY_F2; break;
+		case VK_F3:     key = CPNBI_KEY_F3; break;
+		case VK_F4:     key = CPNBI_KEY_F4; break;
+		case VK_F5:     key = CPNBI_KEY_F5; break;
+		case VK_F6:     key = CPNBI_KEY_F6; break;
+		case VK_F7:     key = CPNBI_KEY_F7; break;
+		case VK_F8:     key = CPNBI_KEY_F8; break;
+		case VK_F9:     key = CPNBI_KEY_F9; break;
+		case VK_F10:    key = CPNBI_KEY_F10; break;
+		case VK_F11:    key = CPNBI_KEY_F11; break;
+		case VK_F12:    key = CPNBI_KEY_F12; break;
+		default:
+			int ch = record->Event.KeyEvent.uChar.AsciiChar;
+			if (ch >= 32 && ch <= 126) {
+        key = ch;
+	    }
 		}
 	}
+
+	return key + mod;
+}
+
+int cpnbi_is_char_available() {
+	DWORD count;
+	INPUT_RECORD record;
+
+	PeekConsoleInput(hStdin, &record, 1, &count);
+
+	if (count > 0) {
+		int res = cpnbi__process_event(&record);
+
+		if (res >= 32 && res <= 126) return 1;
+		else {
+			/* Consume non useful event */
+			ReadConsoleInput(hStdin, &record, 1, &count);
+		}
+	}
+
 	return 0;
 }
 
-int key_input_wait(cpnbi_KeyEvent* out_event) {
+int cpnbi_is_event_available() {
 	DWORD count;
 	INPUT_RECORD record;
-	while (1) {
-		ReadConsoleInput(hStdin, &record, 1, &count);
-		if (record.EventType == CPNBI_KEY_EVENT 
-		 && record.Event.cpnbi_KeyEvent.bKeyDown) {
-			if (translate_event(&record.Event.cpnbi_KeyEvent, out_event)) 
-				return 1;
+
+	PeekConsoleInput(hStdin, &record, 1, &count);
+
+	if (count > 0) {
+		int res = cpnbi__process_event(&record);
+
+		if ((res % 1000) != 0) return 1;
+		else {
+			/* Consume non useful event */
+			ReadConsoleInput(hStdin, &record, 1, &count);
 		}
 	}
+
 	return 0;
 }
 
-void key_input_shutdown() {
+int cpnbi_get_char() {
+	DWORD count;
+	INPUT_RECORD record;
+
+	ReadConsoleInput(hStdin, &record, 1, &count);
+
+	if (count > 0) {
+		int res = cpnbi__process_event(&record);
+
+		if (res >= 32 && res <= 126) return 1;
+	}
+
+	return 0;
+}
+
+int cpnbi_get_event() {
+	DWORD count;
+	INPUT_RECORD record;
+
+	ReadConsoleInput(hStdin, &record, 1, &count);
+
+	return cpnbi__process_event(&record);
+}
+
+void cpnbi_shutdown() {
 	SetConsoleMode(hStdin, orig_mode);
 }
 
@@ -114,6 +170,25 @@ int cpnbi__getch() {
 	return ch;
 }
 
+int cpnbi_is_char_available(void) {
+	int ch;
+	int oldf;
+	
+	oldf = fcntl(STDIN_FILENO, F_GETFL, 0);
+	fcntl(STDIN_FILENO, F_SETFL, oldf | O_NONBLOCK);
+	
+	ch = cpnbi__getch();
+	
+	fcntl(STDIN_FILENO, F_SETFL, oldf);
+	
+	if (ch != EOF && ch >= 32 && ch <= 126) {
+		ungetc(ch, stdin);
+		return 1;
+	} else {
+		return 0;
+	}
+}
+
 int cpnbi_is_event_available(void) {
     int ch;
     int oldf;
@@ -131,6 +206,16 @@ int cpnbi_is_event_available(void) {
     }
 
     return 0;
+}
+
+int cpnbi_get_char() {
+	int e;
+
+	if ((e = cpnbi__getch()) >= 32 && e <= 126) {
+		return e;
+	} else {
+		return CPNBI_KEY_NUL;
+	}
 }
 
 int cpnbi_get_event() {

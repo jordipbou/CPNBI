@@ -35,12 +35,9 @@
 #define CPNBI_KEY_F11					276
 #define CPNBI_KEY_F12					277
 
-typedef struct {
-    int key;         // One of the KEY_* values
-    int modifiers;   // Combination of MOD_* flags
-} cpnbi_KeyEvent;
-
 void cpnbi_init();
+int cpnbi_is_char_available();
 int cpnbi_is_event_available();
+int cpnbi_get_char();
 int cpnbi_get_event();
 void cpnbi_shutdown();
