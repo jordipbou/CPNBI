@@ -115,24 +115,30 @@ int cpnbi_get_char() {
 	DWORD count;
 	INPUT_RECORD record;
 
-	ReadConsoleInput(hStdin, &record, 1, &count);
+	while (1) {
+		ReadConsoleInput(hStdin, &record, 1, &count);
 
-	if (count > 0) {
-		int res = cpnbi__process_event(&record);
+		if (count > 0) {
+			int res = cpnbi__process_event(&record);
 
-		if (res >= 32 && res <= 126) return 1;
+			if (res >= 32 && res <= 126) return res;
+		}
 	}
-
-	return 0;
 }
 
 int cpnbi_get_event() {
 	DWORD count;
 	INPUT_RECORD record;
 
-	ReadConsoleInput(hStdin, &record, 1, &count);
+	while (1) {
+		ReadConsoleInput(hStdin, &record, 1, &count);
 
-	return cpnbi__process_event(&record);
+		if (count > 0) {
+			int res = cpnbi__process_event(&record);
+
+			if ((res % 1000) != 0) return res;
+		}
+	}
 }
 
 void cpnbi_shutdown() {
