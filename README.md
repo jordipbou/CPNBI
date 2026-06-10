@@ -10,9 +10,15 @@
 - Works on both Windows and Linux terminals
 - Simple API
 
-## Build
+## Building
+
+### Without build system
 
 Include the `cpnbi.c` and `cpnbi.h` files in your project. Then compile and link normally.
+
+### Using CMake
+
+Just add the cpnbi subdirectory and link to cpnbi_lib.
 
 ## Usage
 
