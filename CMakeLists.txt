@@ -10,8 +10,6 @@ target_include_directories(cpnbi_lib
         $<INSTALL_INTERFACE:>  # for install(EXPORT ...) scenarios
 )
 
-add_library(cpnbi::cpnbi_lib ALIAS cpnbi_lib)
-
 # Test executable
 
 add_executable(test test.c)
