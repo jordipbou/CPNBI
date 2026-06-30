@@ -177,22 +177,20 @@ int cpnbi__getch() {
 }
 
 int cpnbi_is_char_available(void) {
-	int ch;
-	int oldf;
-	
-	oldf = fcntl(STDIN_FILENO, F_GETFL, 0);
-	fcntl(STDIN_FILENO, F_SETFL, oldf | O_NONBLOCK);
-	
-	ch = cpnbi__getch();
-	
-	fcntl(STDIN_FILENO, F_SETFL, oldf);
-	
-	if (ch != EOF && ch >= 32 && ch <= 126) {
-		ungetc(ch, stdin);
-		return 1;
-	} else {
-		return 0;
-	}
+    int ch;
+    int oldf;
+
+    oldf = fcntl(STDIN_FILENO, F_GETFL, 0);
+    fcntl(STDIN_FILENO, F_SETFL, oldf | O_NONBLOCK);
+    ch = cpnbi__getch();
+    fcntl(STDIN_FILENO, F_SETFL, oldf);
+
+    if (ch == EOF) {
+        return 0;
+    }
+
+    ungetc(ch, stdin);
+    return (ch >= 32 && ch <= 126);
 }
 
 int cpnbi_is_event_available(void) {
