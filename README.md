@@ -50,3 +50,10 @@ int main() {
 ## License
 
 MIT License
+
+## Interesting information about how terminals work
+
+- ["The TTY demystified" by Linus Åkesson](https://www.linusakesson.net/programming/tty/)
+- ["A Brief Introduction to termios" by Nelson Elhage](https://blog.nelhage.com/2009/12/a-brief-introduction-to-termios/)
+- ["Build Your Own Text Editor"](https://viewsourcecode.org/snaptoken/kilo/)
+- [xterm's ctlseqs.txt](https://invisible-island.net/xterm/ctlseqs/ctlseqs.txt)
