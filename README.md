@@ -1,6 +1,10 @@
 # CPNBI
 
-**CPNBI** is a lightweight, cross-platform C library for non-blocking keyboard input handling in console applications.
+**CPNBI** is a lightweight, cross-platform C library for 
+non-blocking keyboard input handling in console applications.
+
+Imitates Windows's conio.h kbhit() and getch() functions 
+also for Linux (and maybe other platforms in the future).
 
 ## Features
 
@@ -14,11 +18,12 @@
 
 ### Without build system
 
-Include the `cpnbi.c` and `cpnbi.h` files in your project. Then compile and link normally.
+Include the `cpnbi.c` and `cpnbi.h` files in your project. 
+Then compile and link normally.
 
 ### Using CMake
 
-Just add the cpnbi subdirectory and link to cpnbi_lib.
+Just add the cpnbi subdirectory and link to `cpnbi_lib`.
 
 ## Usage
 
