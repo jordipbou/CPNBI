@@ -1,6 +1,8 @@
 #ifndef CPNBI_H
 #define CPNBI_H
 
+#include <stdlib.h> /* atexit */
+
 #define CPNBI_MOD_NONE      0
 #define CPNBI_MOD_SHIFT     1000
 #define CPNBI_MOD_CTRL      2000
@@ -43,6 +45,5 @@ int cpnbi_is_char_available();
 int cpnbi_is_event_available();
 int cpnbi_get_char();
 int cpnbi_get_event();
-void cpnbi_shutdown();
 
 #endif

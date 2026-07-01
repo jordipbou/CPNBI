@@ -14,7 +14,6 @@ main() {
     printf("Event: %d\n", e);
     */
 	}
-	cpnbi_shutdown();
 
 	return 0;
 }

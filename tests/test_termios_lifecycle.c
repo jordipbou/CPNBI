@@ -1,6 +1,6 @@
 /* tests/test_termios_lifecycle.c
  *
- * Verifies that cpnbi_init()/cpnbi_shutdown() correctly 
+ * Verifies that cpnbi_init()/cpnbi__shutdown() correctly 
  * own the raw-mode lifecycle (point 3): init() should 
  * disable ICANON/ECHO exactly once, and shutdown() should 
  * restore the terminal to exactly what it was before 
@@ -17,14 +17,13 @@
 #include "cpnbi.h"
 #include "unity.h"
 
+#include <pty.h>
 #include <termios.h>
 #include <unistd.h>
 
-#ifdef __APPLE__
-#include <util.h>
-#else
-#include <pty.h>
-#endif
+/* Internal symbol, not part of the public header, */
+/* declared here for testing purposes only. */
+void cpnbi__shutdown();
 
 static int master_fd;
 static int slave_fd;
@@ -51,7 +50,7 @@ setUp(void) {
 
 void
 tearDown(void) {
-	/* Note: does NOT call cpnbi_shutdown() here - each 
+	/* Note: does NOT call cpnbi__shutdown() here - each 
 		 test controls the init/shutdown calls itself, since 
 		 that's exactly what's under test. */
 	dup2(saved_stdin_fd, STDIN_FILENO);
@@ -91,7 +90,7 @@ test_init_disables_icanon_and_echo(void) {
 	    during.c_lflag & ECHO,
 	    "cpnbi_init() should have disabled ECHO");
 
-	cpnbi_shutdown(); /* leave the fd in a clean state 
+	cpnbi__shutdown(); /* leave the fd in a clean state 
 											 before tearDown */
 }
 
@@ -103,7 +102,7 @@ test_shutdown_restores_original_settings(void) {
 	                      tcgetattr(STDIN_FILENO, &before));
 
 	cpnbi_init();
-	cpnbi_shutdown();
+	cpnbi__shutdown();
 
 	TEST_ASSERT_EQUAL_INT(0, tcgetattr(STDIN_FILENO, &after));
 
@@ -131,9 +130,9 @@ test_init_is_idempotent_with_shutdown_in_between(void) {
 	                      tcgetattr(STDIN_FILENO, &before));
 
 	cpnbi_init();
-	cpnbi_shutdown();
+	cpnbi__shutdown();
 	cpnbi_init();
-	cpnbi_shutdown();
+	cpnbi__shutdown();
 
 	TEST_ASSERT_EQUAL_INT(0, tcgetattr(STDIN_FILENO, &after));
 	TEST_ASSERT_EQUAL_UINT(before.c_lflag, after.c_lflag);

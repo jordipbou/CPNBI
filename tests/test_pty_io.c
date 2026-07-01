@@ -15,6 +15,10 @@
 #include <termios.h>
 #include <unistd.h>
 
+/* Internal symbol, not part of the public header, */
+/* declared here for testing purposes only. */
+void cpnbi__shutdown();
+
 static int master_fd;
 static int slave_fd;
 static int saved_stdin_fd;
@@ -49,7 +53,7 @@ setUp(void) {
 
 void
 tearDown(void) {
-	cpnbi_shutdown();
+	cpnbi__shutdown();
 	dup2(saved_stdin_fd, STDIN_FILENO);
 	close(saved_stdin_fd);
 	close(master_fd);

@@ -53,9 +53,19 @@ target_link_libraries(test_termios_lifecycle PRIVATE
 	unity
 	util)
 
+## Test signal handling
+
+add_executable(test_signal_handling
+	tests/test_signal_handling.c)
+target_link_libraries(test_signal_handling PRIVATE
+	cpnbi_lib
+	unity
+	util)
+
 # Adding tests to ctest
 
 enable_testing()
 add_test(NAME pty_io COMMAND test_pty_io)
 add_test(NAME decoder COMMAND test_decoder)
 add_test(NAME termios_lifecycle COMMAND test_termios_lifecycle)
+add_test(NAME signal_handling COMMAND test_signal_handling)

@@ -11,6 +11,25 @@ static HANDLE hStdin;
 static DWORD orig_mode;
 
 void
+cpnbi__shutdown() {
+	SetConsoleMode(hStdin, orig_mode);
+}
+
+BOOL WINAPI
+cpnbi__ctrl_handler(DWORD ctrl_type) {
+	switch (ctrl_type) {
+		case CTRL_C_EVENT: /* roughly equivalent to SIGINT */
+		case CTRL_BREAK_EVENT:
+		case CTRL_CLOSE_EVENT: /* console window closed - 
+														 no POSIX equivalent */
+		case CTRL_LOGOFF_EVENT:
+		case CTRL_SHUTDOWN_EVENT: cpnbi_shutdown(); break;
+	}
+	return FALSE; /* let the default handler 
+									 still run afterward */
+}
+
+void
 cpnbi_init() {
 	DWORD mode = 0;
 
@@ -20,6 +39,9 @@ cpnbi_init() {
 	    ~(ENABLE_LINE_INPUT | ENABLE_ECHO_INPUT); // optional
 	mode |= ENABLE_WINDOW_INPUT | ENABLE_PROCESSED_INPUT;
 	SetConsoleMode(hStdin, mode);
+
+	atexit(cpnbi__shutdown);
+	SetConsoleCtrlHandler(cpnbi__ctrl_handler, TRUE);
 }
 
 int
@@ -159,26 +181,40 @@ cpnbi_get_event() {
 	}
 }
 
-void
-cpnbi_shutdown() {
-	SetConsoleMode(hStdin, orig_mode);
-}
-
 #else
 
 /* LINUX IMPLEMENTATION */
 
 #include <fcntl.h>
+#include <signal.h>
 #include <stdio.h>
 #include <string.h>
 #include <termios.h>
 #include <unistd.h>
-#include <stdlib.h> /* atexit */
 #include "cpnbi.h"
 
 static struct termios orig_termios;
 
-void cpnbi_init() {
+void
+cpnbi__shutdown() {
+	tcsetattr(STDIN_FILENO, TCSANOW, &orig_termios);
+}
+
+static void
+cpnbi__signal_handler(int signum) {
+	cpnbi__shutdown();
+	/* Reset to default handling and re-raise, rather 
+		 than exit()/_exit() directly, so the process still 
+		 terminates via the signal itself - this preserves 
+		 normal Unix semantics (e.g. the shell reporting
+	   "Terminated" and $? reflecting death-by-signal), 
+		 rather than masquerading as a clean exit. */
+	signal(signum, SIG_DFL);
+	raise(signum);
+}
+
+void
+cpnbi_init() {
 	struct termios raw;
 
 	tcgetattr(STDIN_FILENO, &orig_termios);
@@ -186,31 +222,23 @@ void cpnbi_init() {
 	raw.c_lflag &= ~(ICANON | ECHO);
 	tcsetattr(STDIN_FILENO, TCSANOW, &raw);
 
-	atexit(cpnbi_shutdown);
+	/* Not calling cpnbi_shutdown when exiting the host
+		 program means the terminal will stay in an incorrect
+		 mode. That happens if using exit() or on SIGINT
+		 and SIGTERM. 
+		 Here, cpnbi__shutdown and cpnbi__signal_handler are
+		 called on each required case to leave the terminal
+		 in a correct state.
+		 */
+	atexit(cpnbi__shutdown);
+	signal(SIGINT, cpnbi__signal_handler);
+	signal(SIGTERM, cpnbi__signal_handler);
 }
 
-int cpnbi__getch() {
-	return getchar();
-}
-
-/*
 int
 cpnbi__getch() {
-	struct termios oldt, newt;
-	int ch;
-
-	tcgetattr(STDIN_FILENO, &oldt);
-	newt = oldt;
-	newt.c_lflag &= ~(ICANON | ECHO);
-	tcsetattr(STDIN_FILENO, TCSANOW, &newt);
-
-	ch = getchar();
-
-	tcsetattr(STDIN_FILENO, TCSANOW, &oldt);
-
-	return ch;
+	return getchar();
 }
-*/
 
 int
 cpnbi_is_char_available(void) {
@@ -611,11 +639,6 @@ int
 cpnbi_get_event() {
 	return cpnbi__decode_event(cpnbi__getch,
 	                           cpnbi_is_event_available);
-}
-
-void 
-cpnbi_shutdown() {
-	tcsetattr(STDIN_FILENO, TCSANOW, &orig_termios);
 }
 
 #endif
