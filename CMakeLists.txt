@@ -21,14 +21,41 @@ target_include_directories(cpnbi_lib
         $<INSTALL_INTERFACE:>  # for install(EXPORT ...) scenarios
 )
 
-# Test PTY
+if (NOT MSVC)
+  target_compile_options(cpnbi_lib PRIVATE -Wall -Wextra)
+else()
+  target_compile_options(cpnbi_lib PRIVATE /W4)
+endif()
 
-add_executable(test_pty_io tests/test_pty_io.c)
-target_link_libraries(test_pty_io PRIVATE cpnbi_lib unity util)
-enable_testing()
-add_test(NAME pty_io COMMAND test_pty_io)
-
-# Test executable
+# Demo executable
 
 add_executable(demo demo.c)
 target_link_libraries(demo cpnbi_lib)
+
+# Unit tests
+
+## Test PTY
+
+add_executable(test_pty_io tests/test_pty_io.c)
+target_link_libraries(test_pty_io PRIVATE cpnbi_lib unity util)
+
+## Test decoder
+
+add_executable(test_decoder tests/test_decoder.c)
+target_link_libraries(test_decoder PRIVATE cpnbi_lib unity)
+
+## Test termios lifecycle
+
+add_executable(test_termios_lifecycle 
+	tests/test_termios_lifecycle)
+target_link_libraries(test_termios_lifecycle PRIVATE 
+	cpnbi_lib 
+	unity
+	util)
+
+# Adding tests to ctest
+
+enable_testing()
+add_test(NAME pty_io COMMAND test_pty_io)
+add_test(NAME decoder COMMAND test_decoder)
+add_test(NAME termios_lifecycle COMMAND test_termios_lifecycle)
