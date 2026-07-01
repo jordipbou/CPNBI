@@ -173,6 +173,7 @@ cpnbi_shutdown() {
 #include <string.h>
 #include <termios.h>
 #include <unistd.h>
+#include <stdlib.h> /* atexit */
 #include "cpnbi.h"
 
 static struct termios orig_termios;
@@ -184,6 +185,8 @@ void cpnbi_init() {
 	raw = orig_termios;
 	raw.c_lflag &= ~(ICANON | ECHO);
 	tcsetattr(STDIN_FILENO, TCSANOW, &raw);
+
+	atexit(cpnbi_shutdown);
 }
 
 int cpnbi__getch() {
