@@ -23,7 +23,7 @@ cpnbi__ctrl_handler(DWORD ctrl_type) {
 		case CTRL_CLOSE_EVENT: /* console window closed - 
 														 no POSIX equivalent */
 		case CTRL_LOGOFF_EVENT:
-		case CTRL_SHUTDOWN_EVENT: cpnbi_shutdown(); break;
+		case CTRL_SHUTDOWN_EVENT: cpnbi__shutdown(); break;
 	}
 	return FALSE; /* let the default handler 
 									 still run afterward */
@@ -223,7 +223,7 @@ cpnbi_init() {
 	raw.c_lflag &= ~(ICANON | ECHO);
 	tcsetattr(STDIN_FILENO, TCSANOW, &raw);
 
-	/* Not calling cpnbi_shutdown when exiting the host
+	/* Not calling cpnbi__shutdown when exiting the host
 		 program means the terminal will stay in an incorrect
 		 mode. That happens if using exit() or on SIGINT
 		 and SIGTERM. 
