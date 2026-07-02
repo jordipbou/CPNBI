@@ -32,28 +32,23 @@ endif()
 add_executable(demo demo.c)
 target_link_libraries(demo cpnbi_lib)
 
-# Unit tests
-
-enable_testing()
-
-## Test PTY
-
 if (NOT WIN32)
+
+	# Unit tests
+	enable_testing()
+
+	## Test PTY
 	add_executable(test_pty_io tests/test_pty_io.c)
 	target_link_libraries(test_pty_io PRIVATE 
 		cpnbi_lib unity util pthread)
 	add_test(NAME pty_io COMMAND test_pty_io)
-endif()
 
-## Test decoder
+	## Test decoder
+	add_executable(test_decoder tests/test_decoder.c)
+	target_link_libraries(test_decoder PRIVATE cpnbi_lib unity)
+	add_test(NAME decoder COMMAND test_decoder)
 
-add_executable(test_decoder tests/test_decoder.c)
-target_link_libraries(test_decoder PRIVATE cpnbi_lib unity)
-add_test(NAME decoder COMMAND test_decoder)
-
-## Test termios lifecycle
-
-if (NOT WIN32)
+	## Test termios lifecycle
 	add_executable(test_termios_lifecycle 
 		tests/test_termios_lifecycle.c)
 	target_link_libraries(test_termios_lifecycle PRIVATE 
@@ -62,11 +57,8 @@ if (NOT WIN32)
 		util)
 	add_test(NAME termios_lifecycle COMMAND 
 		test_termios_lifecycle)
-endif()
 
-## Test signal handling
-
-if (NOT WIN32)
+	## Test signal handling
 	add_executable(test_signal_handling
 		tests/test_signal_handling.c)
 	target_link_libraries(test_signal_handling PRIVATE
@@ -74,4 +66,5 @@ if (NOT WIN32)
 		unity
 		util)
 	add_test(NAME signal_handling COMMAND test_signal_handling)
+
 endif()
