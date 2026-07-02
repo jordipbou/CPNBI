@@ -189,6 +189,7 @@ cpnbi_get_event() {
 #include <signal.h>
 #include <stdio.h>
 #include <string.h>
+#include <sys/select.h>
 #include <termios.h>
 #include <unistd.h>
 #include "cpnbi.h"
@@ -635,10 +636,49 @@ cpnbi__decode_event(int (*next_byte)(void),
 	return key + mod;
 }
 
+/* Used only to disambiguate a lone Esc keypress from 
+	 the start of an escape sequence (point 5). Unlike 
+	 cpnbi_is_event_available(), this deliberately waits 
+	 briefly instead of polling instantly - a real sequence 
+	 arriving with some latency shouldn't be misread as a lone
+   Esc. Not used for general-purpose polling; 
+	 cpnbi_is_event_available() keeps its existing 
+	 instant-check behavior for that. */
+static int
+cpnbi__escape_followup_available(void) {
+	fd_set fds;
+	struct timeval tv;
+
+	/* select() only sees the kernel-level fd buffer, 
+		 but next_byte() reads through buffered stdio 
+		 (getchar()) - and any earlier buffered read 
+		 (e.g. is_char_available()/is_event_available()) may 
+		 have already pulled subsequent bytes out of the kernel 
+		 and into stdio's user-space buffer, invisible to 
+		 select(). Check that buffer first, the same way 
+		 those functions do, before falling back to a 
+		 real wait. */
+
+	if (!cpnbi_is_event_available()) {
+		/* Nothing buffered yet - wait up to the timeout for 
+		   the rest of the sequence to actually arrive at the 
+		   kernel */
+		FD_ZERO(&fds);
+		FD_SET(STDIN_FILENO, &fds);
+		tv.tv_sec = 0;
+		tv.tv_usec = CPNBI_ESCAPE_TIMEOUT_USEC;
+
+		return select(STDIN_FILENO + 1, &fds, NULL, NULL, &tv)
+		       > 0;
+	}
+
+	return 1;
+}
+
 int
 cpnbi_get_event() {
-	return cpnbi__decode_event(cpnbi__getch,
-	                           cpnbi_is_event_available);
+	return cpnbi__decode_event(
+	    cpnbi__getch, cpnbi__escape_followup_available);
 }
 
 #endif

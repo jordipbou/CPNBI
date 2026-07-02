@@ -37,7 +37,8 @@ target_link_libraries(demo cpnbi_lib)
 ## Test PTY
 
 add_executable(test_pty_io tests/test_pty_io.c)
-target_link_libraries(test_pty_io PRIVATE cpnbi_lib unity util)
+target_link_libraries(test_pty_io PRIVATE 
+	cpnbi_lib unity util pthread)
 
 ## Test decoder
 

@@ -10,6 +10,7 @@
 #include "unity.h"
 
 #include <fcntl.h>
+#include <pthread.h>
 #include <pty.h>
 #include <string.h>
 #include <termios.h>
@@ -115,6 +116,67 @@ test_repeated_char_available_checks_are_idempotent(void) {
 	TEST_ASSERT_EQUAL_INT(CPNBI_KEY_UP, cpnbi_get_event());
 }
 
+struct delayed_write_args {
+	int fd;
+	const unsigned char* bytes;
+	size_t len;
+	useconds_t delay_usec;
+};
+
+static void*
+delayed_write_thread(void* arg) {
+	struct delayed_write_args* args =
+	    (struct delayed_write_args*)arg;
+	usleep(args->delay_usec);
+	write(args->fd, args->bytes, args->len);
+	return NULL;
+}
+
+/* Regression test: the rest of an escape sequence arriving
+	 with a short delay (simulating SSH/tmux/slow-pty latency) 
+	 must still be decoded correctly, 
+	 not misread as a lone Esc. */
+void
+test_delayed_escape_sequence_still_decoded_correctly(void) {
+	unsigned char esc_byte[] = {27};
+	unsigned char rest[] = {'[', 'A'}; /* completes ESC [ A 
+		                                    = Up arrow */
+	pthread_t writer;
+	struct delayed_write_args args = {
+	    .fd = master_fd,
+	    .bytes = rest,
+	    .len = sizeof(rest),
+	    .delay_usec = 10000 /* 10ms - comfortably 
+				                     inside the 25ms window */
+	};
+
+	type_bytes(esc_byte, sizeof(esc_byte)); /* ESC arrives 
+		                                         immediately */
+	pthread_create(&writer, NULL, delayed_write_thread,
+	               &args);
+
+	/* cpnbi_get_event() blocks reading ESC (already 
+		 available), then waits up to 25ms for the rest - 
+		 which arrives at the 10ms mark. */
+	TEST_ASSERT_EQUAL_INT(CPNBI_KEY_UP, cpnbi_get_event());
+
+	pthread_join(writer, NULL);
+}
+
+/* Sanity check the other direction: a genuinely lone Esc 
+	 (nothing following, ever) must still resolve to 
+	 CPNBI_KEY_ESCAPE, not hang for 25ms waiting for something 
+	 that'll never come, and not misfire. */
+void
+test_lone_escape_still_resolves_correctly_with_timeout_in_place(
+    void) {
+	unsigned char esc_byte[] = {27};
+	type_bytes(esc_byte, sizeof(esc_byte));
+
+	TEST_ASSERT_EQUAL_INT(CPNBI_KEY_ESCAPE,
+	                      cpnbi_get_event());
+}
+
 int
 main(void) {
 	UNITY_BEGIN();
@@ -123,5 +185,9 @@ main(void) {
 	    test_escape_sequence_byte_is_not_lost_by_char_available_check);
 	RUN_TEST(
 	    test_repeated_char_available_checks_are_idempotent);
+	RUN_TEST(
+	    test_delayed_escape_sequence_still_decoded_correctly);
+	RUN_TEST(
+	    test_lone_escape_still_resolves_correctly_with_timeout_in_place);
 	return UNITY_END();
 }
