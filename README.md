@@ -34,9 +34,9 @@ while (1) {
     if (cpnbi_is_event_available()) {
         int key = cpnbi_get_event();
 
-        /* You can decode the key and modifiers from the 
-				   value e.g., key % 1000 gives key code, 
-					 key / 1000 gives modifiers */
+        /* Decode key and modifiers using accessor functions:
+					 cpnbi_event_key(event) returns the key,
+					 cpnbi_event_mod(event) returns modifiers */
     }
 
     /* do other things... */

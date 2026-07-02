@@ -6,10 +6,8 @@
  * more_available() are both mocked, so these tests are fast 
  * and deterministic, and run the same in any CI environment.
  *
- * These tests capture *current* behavior as a baseline, 
- * including the still-present dead e==0/e==224 branches 
- * and the decimal modifier packing (point 8) - both 
- * of which are pending changes.
+ * The modifier packing was switched from decimal offsets 
+ * to bit flags (point 8) as part of the point 6 work.
  */
 #include "cpnbi.h"
 #include "unity.h"
@@ -18,6 +16,8 @@
 /* declared here for testing purposes only. */
 int cpnbi__decode_event(int (*next_byte)(void),
                         int (*more_available)(void));
+
+#define PACK_EVENT(k, m) ((k) | ((m) << 16))
 
 /* --- Mock infrastructure --- */
 
@@ -277,7 +277,7 @@ test_ctrl_up(void) {
 	static const int bytes[] = {27, '[', '1', ';', '5', 'A'};
 	script(bytes, 6, 1);
 	TEST_ASSERT_EQUAL_INT(
-	    CPNBI_KEY_UP + CPNBI_MOD_CTRL,
+	    PACK_EVENT(CPNBI_KEY_UP, CPNBI_MOD_CTRL),
 	    cpnbi__decode_event(mock_next_byte,
 	                        mock_more_available));
 }
@@ -287,7 +287,7 @@ test_shift_left(void) {
 	static const int bytes[] = {27, '[', '1', ';', '2', 'D'};
 	script(bytes, 6, 1);
 	TEST_ASSERT_EQUAL_INT(
-	    CPNBI_KEY_LEFT + CPNBI_MOD_SHIFT,
+	    PACK_EVENT(CPNBI_KEY_LEFT, CPNBI_MOD_SHIFT),
 	    cpnbi__decode_event(mock_next_byte,
 	                        mock_more_available));
 }
@@ -297,7 +297,7 @@ test_alt_right(void) {
 	static const int bytes[] = {27, '[', '1', ';', '3', 'C'};
 	script(bytes, 6, 1);
 	TEST_ASSERT_EQUAL_INT(
-	    CPNBI_KEY_RIGHT + CPNBI_MOD_ALT,
+	    PACK_EVENT(CPNBI_KEY_RIGHT, CPNBI_MOD_ALT),
 	    cpnbi__decode_event(mock_next_byte,
 	                        mock_more_available));
 }
@@ -307,8 +307,9 @@ test_shift_ctrl_alt_down(void) {
 	static const int bytes[] = {27, '[', '1', ';', '8', 'B'};
 	script(bytes, 6, 1);
 	TEST_ASSERT_EQUAL_INT(
-	    CPNBI_KEY_DOWN + CPNBI_MOD_SHIFT + CPNBI_MOD_CTRL
-	        + CPNBI_MOD_ALT,
+	    PACK_EVENT(CPNBI_KEY_DOWN,
+	               CPNBI_MOD_SHIFT | CPNBI_MOD_CTRL
+	                   | CPNBI_MOD_ALT),
 	    cpnbi__decode_event(mock_next_byte,
 	                        mock_more_available));
 }
@@ -321,7 +322,7 @@ test_ctrl_delete(void) {
 	static const int bytes[] = {27, '[', '3', ';', '5', '~'};
 	script(bytes, 6, 1);
 	TEST_ASSERT_EQUAL_INT(
-	    CPNBI_KEY_DELETE + CPNBI_MOD_CTRL,
+	    PACK_EVENT(CPNBI_KEY_DELETE, CPNBI_MOD_CTRL),
 	    cpnbi__decode_event(mock_next_byte,
 	                        mock_more_available));
 }
@@ -331,9 +332,52 @@ test_shift_page_down(void) {
 	static const int bytes[] = {27, '[', '6', ';', '2', '~'};
 	script(bytes, 6, 1);
 	TEST_ASSERT_EQUAL_INT(
-	    CPNBI_KEY_PAGE_DOWN + CPNBI_MOD_SHIFT,
+	    PACK_EVENT(CPNBI_KEY_PAGE_DOWN, CPNBI_MOD_SHIFT),
 	    cpnbi__decode_event(mock_next_byte,
 	                        mock_more_available));
+}
+
+/* --- rxvt non-xterm sequences that should work unconditionally --- */
+
+void
+test_rxvt_home(void) {
+	static const int bytes[] = {27, '[', '7', '~'};
+	script(bytes, 4, 1);
+	TEST_ASSERT_EQUAL_INT(
+	    PACK_EVENT(CPNBI_KEY_HOME, CPNBI_MOD_NONE),
+	    cpnbi__decode_event(mock_next_byte,
+	                        mock_more_available));
+}
+
+void
+test_rxvt_end(void) {
+	static const int bytes[] = {27, '[', '8', '~'};
+	script(bytes, 4, 1);
+	TEST_ASSERT_EQUAL_INT(
+	    PACK_EVENT(CPNBI_KEY_END, CPNBI_MOD_NONE),
+	    cpnbi__decode_event(mock_next_byte,
+	                        mock_more_available));
+}
+
+/* --- cpnbi_event_key / cpnbi_event_mod round-trip --- */
+
+void
+test_accessors_round_trip_plain_char(void) {
+	int event = PACK_EVENT('a', CPNBI_MOD_NONE);
+	TEST_ASSERT_EQUAL_INT('a', cpnbi_event_key(event));
+	TEST_ASSERT_EQUAL_INT(CPNBI_MOD_NONE,
+	                      cpnbi_event_mod(event));
+}
+
+void
+test_accessors_round_trip_shifted_key(void) {
+	int event = PACK_EVENT(CPNBI_KEY_UP,
+	                       CPNBI_MOD_SHIFT | CPNBI_MOD_CTRL);
+	TEST_ASSERT_EQUAL_INT(CPNBI_KEY_UP,
+	                      cpnbi_event_key(event));
+	TEST_ASSERT_EQUAL_INT(
+	    CPNBI_MOD_SHIFT | CPNBI_MOD_CTRL,
+	    cpnbi_event_mod(event));
 }
 
 void
@@ -385,6 +429,12 @@ main(void) {
 	RUN_TEST(test_shift_page_down);
 
 	RUN_TEST(test_unrecognized_sequence_reports_nul);
+
+	RUN_TEST(test_rxvt_home);
+	RUN_TEST(test_rxvt_end);
+
+	RUN_TEST(test_accessors_round_trip_plain_char);
+	RUN_TEST(test_accessors_round_trip_shifted_key);
 
 	return UNITY_END();
 }

@@ -57,3 +57,7 @@ dkms.conf
 # build directories
 build/
 build/*
+
+# opencode testing directories
+Testing/
+Testing/*

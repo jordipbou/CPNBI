@@ -13,9 +13,9 @@
 #define CPNBI_ESCAPE_TIMEOUT_USEC 25000
 
 #define CPNBI_MOD_NONE            0
-#define CPNBI_MOD_SHIFT           1000
-#define CPNBI_MOD_CTRL            2000
-#define CPNBI_MOD_ALT             4000
+#define CPNBI_MOD_SHIFT           (1 << 0)
+#define CPNBI_MOD_CTRL            (1 << 1)
+#define CPNBI_MOD_ALT             (1 << 2)
 
 #define CPNBI_KEY_NUL             0
 
@@ -54,5 +54,7 @@ int cpnbi_is_char_available();
 int cpnbi_is_event_available();
 int cpnbi_get_char();
 int cpnbi_get_event();
+int cpnbi_event_key(int event);
+int cpnbi_event_mod(int event);
 
 #endif
