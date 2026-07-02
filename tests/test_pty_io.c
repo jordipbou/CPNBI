@@ -116,6 +116,33 @@ test_repeated_char_available_checks_are_idempotent(void) {
 	TEST_ASSERT_EQUAL_INT(CPNBI_KEY_UP, cpnbi_get_event());
 }
 
+/* Regression test: get_char() must skip non-printable */
+/* bytes (not return NUL) and wait for the next */
+/* printable character. */
+void
+test_non_printable_byte_skipped_by_get_char(void) {
+	unsigned char input[] = {0x01, 'a'}; /* Ctrl+A + 'a' */
+	type_bytes(input, sizeof(input));
+
+	TEST_ASSERT_EQUAL_INT('a', cpnbi_get_char());
+}
+
+/* Regression test: an escape sequence appearing mid- */
+/* stream must be consumed atomically by get_char(), */
+/* not desyncing the stream by dropping only the */
+/* leading ESC (same bug class as point 1) */
+void
+test_escape_sequence_fully_consumed_by_get_char(void) {
+	unsigned char input[] = {27, '[', 'A', 'b'};
+	/* ESC [ A (up arrow) + 'b' */
+	type_bytes(input, sizeof(input));
+
+	/* get_char() must skip the entire arrow-key */
+	/* sequence (consuming all 3 bytes atomically) */
+	/* and return the 'b' that follows. */
+	TEST_ASSERT_EQUAL_INT('b', cpnbi_get_char());
+}
+
 struct delayed_write_args {
 	int fd;
 	const unsigned char* bytes;
@@ -185,6 +212,10 @@ main(void) {
 	    test_escape_sequence_byte_is_not_lost_by_char_available_check);
 	RUN_TEST(
 	    test_repeated_char_available_checks_are_idempotent);
+	RUN_TEST(
+	    test_non_printable_byte_skipped_by_get_char);
+	RUN_TEST(
+	    test_escape_sequence_fully_consumed_by_get_char);
 	RUN_TEST(
 	    test_delayed_escape_sequence_still_decoded_correctly);
 	RUN_TEST(

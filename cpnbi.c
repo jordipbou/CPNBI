@@ -281,14 +281,22 @@ cpnbi_is_event_available(void) {
 	return 0;
 }
 
+/* Forward declarations: decode_event and */
+/* escape_followup_available are defined later. */
+int cpnbi__decode_event(int (*next_byte)(void),
+                        int (*more_available)(void));
+static int cpnbi__escape_followup_available(void);
+
 int
 cpnbi_get_char() {
-	int e;
+	while (1) {
+		int event = cpnbi__decode_event(
+		    cpnbi__getch, cpnbi__escape_followup_available);
+		int key = cpnbi_event_key(event);
 
-	if ((e = cpnbi__getch()) >= 32 && e <= 126) {
-		return e;
-	} else {
-		return CPNBI_KEY_NUL;
+		if (key >= 32 && key <= 126) {
+			return key;
+		}
 	}
 }
 

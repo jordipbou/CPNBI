@@ -337,6 +337,38 @@ test_shift_page_down(void) {
 	                        mock_more_available));
 }
 
+/* --- get_char loop behavior: non-printable bytes are */
+/*     skipped, the decoder advances past them          */
+/*     atomically without losing position                */
+
+void
+test_get_char_loop_skips_non_printable_then_finds_printable(
+    void) {
+	/* Mimics what cpnbi_get_char() does internally: */
+	/* call cpnbi__decode_event() in a loop, ignoring */
+	/* non-printable results until a printable one */
+	/* appears.                                        */
+	static const int bytes[] = {0x01, 'a'};
+	int event;
+	int key;
+
+	script(bytes, 2, 0);
+	event = cpnbi__decode_event(mock_next_byte,
+	                            mock_more_available);
+	key = cpnbi_event_key(event);
+	/* First call: non-printable byte (0x01), */
+	/* key < 32, skipped by get_char's loop */
+	TEST_ASSERT_TRUE_MESSAGE(
+	    key < 32 || key > 126,
+	    "first byte should not be printable");
+
+	/* Second call: printable 'a' returned */
+	event = cpnbi__decode_event(mock_next_byte,
+	                            mock_more_available);
+	key = cpnbi_event_key(event);
+	TEST_ASSERT_EQUAL_INT('a', key);
+}
+
 /* --- rxvt non-xterm sequences that should work unconditionally --- */
 
 void
@@ -429,6 +461,9 @@ main(void) {
 	RUN_TEST(test_shift_page_down);
 
 	RUN_TEST(test_unrecognized_sequence_reports_nul);
+
+	RUN_TEST(
+	    test_get_char_loop_skips_non_printable_then_finds_printable);
 
 	RUN_TEST(test_rxvt_home);
 	RUN_TEST(test_rxvt_end);
