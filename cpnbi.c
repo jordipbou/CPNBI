@@ -335,6 +335,18 @@ cpnbi__decode_event(int (*next_byte)(void),
 					case 'D': key = CPNBI_KEY_LEFT; break;
 					case 'H': key = CPNBI_KEY_HOME; break;
 					case 'F': key = CPNBI_KEY_END; break;
+					case '[':
+            /* Linux virtual console (VT) sends F1-F5 as
+               ESC [ [ A .. ESC [ [ E -- this is NOT xterm's
+               ESC O P style and needs its own branch. */
+            switch (e = cpnbi__getch()) {
+                case 'A': key = CPNBI_KEY_F1; break;
+                case 'B': key = CPNBI_KEY_F2; break;
+                case 'C': key = CPNBI_KEY_F3; break;
+                case 'D': key = CPNBI_KEY_F4; break;
+                case 'E': key = CPNBI_KEY_F5; break;
+            }
+            break;
 					default:
 						switch (e) {
 							case '1':
