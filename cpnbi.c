@@ -336,329 +336,137 @@ cpnbi__decode_event(int (*next_byte)(void),
 					case 'H': key = CPNBI_KEY_HOME; break;
 					case 'F': key = CPNBI_KEY_END; break;
 					case '[':
-            /* Linux virtual console (VT) sends F1-F5 as
+						/* Linux virtual console (VT) sends F1-F5 as
                ESC [ [ A .. ESC [ [ E -- this is NOT xterm's
                ESC O P style and needs its own branch. */
-            switch (e = cpnbi__getch()) {
-                case 'A': key = CPNBI_KEY_F1; break;
-                case 'B': key = CPNBI_KEY_F2; break;
-                case 'C': key = CPNBI_KEY_F3; break;
-                case 'D': key = CPNBI_KEY_F4; break;
-                case 'E': key = CPNBI_KEY_F5; break;
-            }
-            break;
+						switch (e = next_byte()) {
+							case 'A': key = CPNBI_KEY_F1; break;
+							case 'B': key = CPNBI_KEY_F2; break;
+							case 'C': key = CPNBI_KEY_F3; break;
+							case 'D': key = CPNBI_KEY_F4; break;
+							case 'E': key = CPNBI_KEY_F5; break;
+						}
+						break;
 					default:
 						switch (e) {
 							case '1':
-								switch (e = next_byte()) {
-									case '~': key = CPNBI_KEY_HOME; break;
-									case ';':
-										switch (mod = next_byte()) {
-											case '2':
-												mod = CPNBI_MOD_SHIFT;
-												break;
-											case '3': mod = CPNBI_MOD_ALT; break;
-											case '4':
-												mod =
-												    CPNBI_MOD_SHIFT | CPNBI_MOD_ALT;
-												break;
-											case '5': mod = CPNBI_MOD_CTRL; break;
-											case '6':
-												mod = CPNBI_MOD_SHIFT
-												      | CPNBI_MOD_CTRL;
-												break;
-											case '7':
-												mod =
-												    CPNBI_MOD_ALT | CPNBI_MOD_CTRL;
-												break;
-											case '8':
-												mod = CPNBI_MOD_SHIFT
-												      | CPNBI_MOD_ALT
-												      | CPNBI_MOD_CTRL;
-												break;
-										}
-										switch (e = next_byte()) {
-											case 'A': key = CPNBI_KEY_UP; break;
-											case 'B': key = CPNBI_KEY_DOWN; break;
-											case 'C':
-												key = CPNBI_KEY_RIGHT;
-												break;
-											case 'D': key = CPNBI_KEY_LEFT; break;
-											case 'H': key = CPNBI_KEY_HOME; break;
-											case 'F': key = CPNBI_KEY_END; break;
-										}
-										break;
-									default:
-										switch (e) {
-											case '1': key = CPNBI_KEY_F1; break;
-											case '2': key = CPNBI_KEY_F2; break;
-											case '3': key = CPNBI_KEY_F3; break;
-											case '4': key = CPNBI_KEY_F4; break;
-											case '5': key = CPNBI_KEY_F5; break;
-											case '7': key = CPNBI_KEY_F6; break;
-											case '8': key = CPNBI_KEY_F7; break;
-											case '9': key = CPNBI_KEY_F8; break;
-										}
-										switch (e = next_byte()) {
-											case '~': break;
-											case ';':
-												switch (mod = next_byte()) {
-													case '2':
-														mod = CPNBI_MOD_SHIFT;
-														break;
-													case '3':
-														mod = CPNBI_MOD_ALT;
-														break;
-													case '4':
-														mod = CPNBI_MOD_SHIFT
-														      | CPNBI_MOD_ALT;
-														break;
-													case '5':
-														mod = CPNBI_MOD_CTRL;
-														break;
-													case '6':
-														mod = CPNBI_MOD_SHIFT
-														      | CPNBI_MOD_CTRL;
-														break;
-													case '7':
-														mod = CPNBI_MOD_ALT
-														      | CPNBI_MOD_CTRL;
-														break;
-													case '8':
-														mod = CPNBI_MOD_SHIFT
-														      | CPNBI_MOD_ALT
-														      | CPNBI_MOD_CTRL;
-														break;
-												}
-												next_byte();
-												break;
-										}
-										break;
-								}
-								break;
 							case '2':
-								switch (e = next_byte()) {
-									case '~': key = CPNBI_KEY_INSERT; break;
-									case ';':
-										key = CPNBI_KEY_INSERT;
-										switch (mod = next_byte()) {
-											case '2':
-												mod = CPNBI_MOD_SHIFT;
-												break;
-											case '3': mod = CPNBI_MOD_ALT; break;
-											case '4':
-												mod =
-												    CPNBI_MOD_SHIFT | CPNBI_MOD_ALT;
-												break;
-											case '5': mod = CPNBI_MOD_CTRL; break;
-											case '6':
-												mod = CPNBI_MOD_SHIFT
-												      | CPNBI_MOD_CTRL;
-												break;
-											case '7':
-												mod =
-												    CPNBI_MOD_ALT | CPNBI_MOD_CTRL;
-												break;
-											case '8':
-												mod = CPNBI_MOD_SHIFT
-												      | CPNBI_MOD_ALT
-												      | CPNBI_MOD_CTRL;
-												break;
-										}
-										next_byte();
-										break;
-									default:
-										switch (e) {
-											case '0': key = CPNBI_KEY_F9; break;
-											case '1': key = CPNBI_KEY_F10; break;
-											case '3': key = CPNBI_KEY_F11; break;
-											case '4': key = CPNBI_KEY_F12; break;
-										}
-										switch (e = next_byte()) {
-											case '~': break;
-											case ';':
-												switch (mod = next_byte()) {
-													case '2':
-														mod = CPNBI_MOD_SHIFT;
-														break;
-													case '3':
-														mod = CPNBI_MOD_ALT;
-														break;
-													case '4':
-														mod = CPNBI_MOD_SHIFT
-														      | CPNBI_MOD_ALT;
-														break;
-													case '5':
-														mod = CPNBI_MOD_CTRL;
-														break;
-													case '6':
-														mod = CPNBI_MOD_SHIFT
-														      | CPNBI_MOD_CTRL;
-														break;
-													case '7':
-														mod = CPNBI_MOD_ALT
-														      | CPNBI_MOD_CTRL;
-														break;
-													case '8':
-														mod = CPNBI_MOD_SHIFT
-														      | CPNBI_MOD_ALT
-														      | CPNBI_MOD_CTRL;
-														break;
-												}
-												next_byte();
-												break;
-										}
-										break;
-								}
-								break;
 							case '3':
-								switch (e = next_byte()) {
-									case '~': key = CPNBI_KEY_DELETE; break;
-									case ';':
-										key = CPNBI_KEY_DELETE;
-										switch (mod = next_byte()) {
-											case '2':
-												mod = CPNBI_MOD_SHIFT;
-												break;
-											case '3': mod = CPNBI_MOD_ALT; break;
-											case '4':
-												mod =
-												    CPNBI_MOD_SHIFT | CPNBI_MOD_ALT;
-												break;
-											case '5': mod = CPNBI_MOD_CTRL; break;
-											case '6':
-												mod = CPNBI_MOD_SHIFT
-												      | CPNBI_MOD_CTRL;
-												break;
-											case '7':
-												mod =
-												    CPNBI_MOD_ALT | CPNBI_MOD_CTRL;
-												break;
-											case '8':
-												mod = CPNBI_MOD_SHIFT
-												      | CPNBI_MOD_ALT
-												      | CPNBI_MOD_CTRL;
-												break;
-										}
-										next_byte();
-										break;
-								}
-								break;
 							case '4':
-								switch (e = next_byte()) {
-									case '~': key = CPNBI_KEY_END; break;
-									case ';':
-										key = CPNBI_KEY_END;
-										switch (mod = next_byte()) {
-											case '2':
-												mod = CPNBI_MOD_SHIFT;
-												break;
-											case '3': mod = CPNBI_MOD_ALT; break;
-											case '4':
-												mod =
-												    CPNBI_MOD_SHIFT | CPNBI_MOD_ALT;
-												break;
-											case '5': mod = CPNBI_MOD_CTRL; break;
-											case '6':
-												mod = CPNBI_MOD_SHIFT
-												      | CPNBI_MOD_CTRL;
-												break;
-											case '7':
-												mod =
-												    CPNBI_MOD_ALT | CPNBI_MOD_CTRL;
-												break;
-											case '8':
-												mod = CPNBI_MOD_SHIFT
-												      | CPNBI_MOD_ALT
-												      | CPNBI_MOD_CTRL;
-												break;
-										}
-										next_byte();
-										break;
-								}
-								break;
 							case '5':
-								switch (e = next_byte()) {
-									case '~': key = CPNBI_KEY_PAGE_UP; break;
-									case ';':
-										key = CPNBI_KEY_PAGE_UP;
-										switch (mod = next_byte()) {
-											case '2':
-												mod = CPNBI_MOD_SHIFT;
-												break;
-											case '3': mod = CPNBI_MOD_ALT; break;
-											case '4':
-												mod =
-												    CPNBI_MOD_SHIFT | CPNBI_MOD_ALT;
-												break;
-											case '5': mod = CPNBI_MOD_CTRL; break;
-											case '6':
-												mod = CPNBI_MOD_SHIFT
-												      | CPNBI_MOD_CTRL;
-												break;
-											case '7':
-												mod =
-												    CPNBI_MOD_ALT | CPNBI_MOD_CTRL;
-												break;
-											case '8':
-												mod = CPNBI_MOD_SHIFT
-												      | CPNBI_MOD_ALT
-												      | CPNBI_MOD_CTRL;
-												break;
-										}
-										next_byte();
-										break;
-								}
-								break;
 							case '6':
-								switch (e = next_byte()) {
-									case '~':
-										key = CPNBI_KEY_PAGE_DOWN;
-										break;
-									case ';':
-										key = CPNBI_KEY_PAGE_DOWN;
-										switch (mod = next_byte()) {
-											case '2':
-												mod = CPNBI_MOD_SHIFT;
-												break;
-											case '3': mod = CPNBI_MOD_ALT; break;
-											case '4':
-												mod =
-												    CPNBI_MOD_SHIFT | CPNBI_MOD_ALT;
-												break;
-											case '5': mod = CPNBI_MOD_CTRL; break;
-											case '6':
-												mod = CPNBI_MOD_SHIFT
-												      | CPNBI_MOD_CTRL;
-												break;
-											case '7':
-												mod =
-												    CPNBI_MOD_ALT | CPNBI_MOD_CTRL;
-												break;
-											case '8':
-												mod = CPNBI_MOD_SHIFT
-												      | CPNBI_MOD_ALT
-												      | CPNBI_MOD_CTRL;
-												break;
-										}
-										next_byte();
-										break;
-								}
-								break;
 							case '7':
-								switch (e = next_byte()) {
-									case '~':
-										key = CPNBI_KEY_HOME;
-										break;
-								}
-								break;
 							case '8':
-								switch (e = next_byte()) {
-									case '~':
-										key = CPNBI_KEY_END;
-										break;
+							case '9': {
+								/* Numeric CSI parameter: accumulate all
+							   digits instead of assuming at most two,
+							   then branch on the terminating byte.
+							   This is needed because plain xterm-style
+							   sequences ("CSI Pn ~") only ever use
+							   1-2 digit parameters, but the Sun-style
+							   function-key sequences some consoles
+							   (e.g. certain VirtualBox text consoles)
+							   send - "CSI Pn z" - use 3-digit
+							   parameters such as 224 for F1. */
+								int num = e - '0';
+
+								while ((e = next_byte()) >= '0'
+								       && e <= '9') {
+									num = num * 10 + (e - '0');
 								}
+
+								if (e == 'z') {
+									/* Sun-style function keys */
+									switch (num) {
+										case 224: key = CPNBI_KEY_F1; break;
+										case 225: key = CPNBI_KEY_F2; break;
+										case 226: key = CPNBI_KEY_F3; break;
+										case 227: key = CPNBI_KEY_F4; break;
+										case 228: key = CPNBI_KEY_F5; break;
+										case 229: key = CPNBI_KEY_F6; break;
+										case 230: key = CPNBI_KEY_F7; break;
+										case 231: key = CPNBI_KEY_F8; break;
+										case 232: key = CPNBI_KEY_F9; break;
+										case 233: key = CPNBI_KEY_F10; break;
+										case 192: key = CPNBI_KEY_F11; break;
+										case 193: key = CPNBI_KEY_F12; break;
+									}
+								} else if (e == '~') {
+									switch (num) {
+										case 1: key = CPNBI_KEY_HOME; break;
+										case 2: key = CPNBI_KEY_INSERT; break;
+										case 3: key = CPNBI_KEY_DELETE; break;
+										case 4: key = CPNBI_KEY_END; break;
+										case 5: key = CPNBI_KEY_PAGE_UP; break;
+										case 6:
+											key = CPNBI_KEY_PAGE_DOWN;
+											break;
+										case 7: key = CPNBI_KEY_HOME; break;
+										case 8: key = CPNBI_KEY_END; break;
+										case 11: key = CPNBI_KEY_F1; break;
+										case 12: key = CPNBI_KEY_F2; break;
+										case 13: key = CPNBI_KEY_F3; break;
+										case 14: key = CPNBI_KEY_F4; break;
+										case 15: key = CPNBI_KEY_F5; break;
+										case 17: key = CPNBI_KEY_F6; break;
+										case 18: key = CPNBI_KEY_F7; break;
+										case 19: key = CPNBI_KEY_F8; break;
+										case 20: key = CPNBI_KEY_F9; break;
+										case 21: key = CPNBI_KEY_F10; break;
+										case 23: key = CPNBI_KEY_F11; break;
+										case 24: key = CPNBI_KEY_F12; break;
+									}
+								} else if (e == ';') {
+									/* Parameter;Modifier<final> form,
+								   e.g. "1;5A" = Ctrl+Up,
+								   "3;2~" = Shift+Delete. */
+									switch (num) {
+										case 1: key = CPNBI_KEY_HOME; break;
+										case 2: key = CPNBI_KEY_INSERT; break;
+										case 3: key = CPNBI_KEY_DELETE; break;
+										case 4: key = CPNBI_KEY_END; break;
+										case 5: key = CPNBI_KEY_PAGE_UP; break;
+										case 6:
+											key = CPNBI_KEY_PAGE_DOWN;
+											break;
+									}
+
+									switch (mod = next_byte()) {
+										case '2': mod = CPNBI_MOD_SHIFT; break;
+										case '3': mod = CPNBI_MOD_ALT; break;
+										case '4':
+											mod = CPNBI_MOD_SHIFT | CPNBI_MOD_ALT;
+											break;
+										case '5': mod = CPNBI_MOD_CTRL; break;
+										case '6':
+											mod =
+											    CPNBI_MOD_SHIFT | CPNBI_MOD_CTRL;
+											break;
+										case '7':
+											mod = CPNBI_MOD_ALT | CPNBI_MOD_CTRL;
+											break;
+										case '8':
+											mod = CPNBI_MOD_SHIFT | CPNBI_MOD_ALT
+											      | CPNBI_MOD_CTRL;
+											break;
+									}
+
+									/* Consume the final byte: '~' for
+								   Home/Insert/Delete/End/PgUp/PgDn,
+								   or a letter for arrow-like keys
+								   sent as "1;<mod><letter>". */
+									switch (e = next_byte()) {
+										case 'A': key = CPNBI_KEY_UP; break;
+										case 'B': key = CPNBI_KEY_DOWN; break;
+										case 'C': key = CPNBI_KEY_RIGHT; break;
+										case 'D': key = CPNBI_KEY_LEFT; break;
+										case 'H': key = CPNBI_KEY_HOME; break;
+										case 'F': key = CPNBI_KEY_END; break;
+									}
+								}
+
 								break;
+							}
 						}
 						break;
 				}
