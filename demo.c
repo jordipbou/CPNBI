@@ -7,12 +7,7 @@ main() {
 
 	cpnbi_init();
 	while (1) {
-		while (!cpnbi_is_event_available()) {}
 		printf("Event: %d\n", cpnbi_get_event());
-		/*
-    e = cpnbi_get_event();
-    printf("Event: %d\n", e);
-    */
 	}
 
 	return 0;
