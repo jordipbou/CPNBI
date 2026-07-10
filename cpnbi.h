@@ -13,10 +13,11 @@
 	 the remaining 2-5 bytes of a sequence to arrive. */
 #define CPNBI_ESCAPE_TIMEOUT_USEC 25000
 
-/* Bit layout for cpnbi_get_event() return value:
+/* Bit layout for cpnbi_get_event() / cpnbi_get_unicode():
    bits  0-21: value (22 bits)
-               - 0 – 0x10FFFF: Unicode code point
-               - > 0x10FFFF   : special key
+               - cpnbi_get_event:  0-255 raw byte
+               - cpnbi_get_unicode: 0-0x10FFFF Unicode
+               - > 0x10FFFF        : special key
    bits 22-29: modifiers (8 Kitty-style flags)
    bits 30-31: event type (reserved for press/repeat/release;
                always 0 = press for now) */
@@ -81,6 +82,7 @@ int cpnbi_is_char_available();
 int cpnbi_is_event_available();
 int32_t cpnbi_get_char();
 int32_t cpnbi_get_event();
+int32_t cpnbi_get_unicode();
 int32_t cpnbi_event_key(int32_t event);
 int32_t cpnbi_event_mod(int32_t event);
 int32_t cpnbi_event_type(int32_t event);

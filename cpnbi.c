@@ -22,9 +22,7 @@ cpnbi__ctrl_handler(DWORD ctrl_type) {
 		case CTRL_BREAK_EVENT:
 		case CTRL_CLOSE_EVENT:
 		case CTRL_LOGOFF_EVENT:
-		case CTRL_SHUTDOWN_EVENT:
-			cpnbi__shutdown();
-			break;
+		case CTRL_SHUTDOWN_EVENT: cpnbi__shutdown(); break;
 	}
 	return FALSE;
 }
@@ -65,8 +63,7 @@ cpnbi__process_event(INPUT_RECORD* record) {
 	    || ctrl & RIGHT_CTRL_PRESSED) {
 		mod |= CPNBI_MOD_CTRL;
 	}
-	if (ctrl & LEFT_ALT_PRESSED
-	    || ctrl & RIGHT_ALT_PRESSED) {
+	if (ctrl & LEFT_ALT_PRESSED || ctrl & RIGHT_ALT_PRESSED) {
 		mod |= CPNBI_MOD_ALT;
 	}
 
@@ -76,7 +73,8 @@ cpnbi__process_event(INPUT_RECORD* record) {
 		case VK_RETURN:
 			return CPNBI_KEY_ENTER | (mod << CPNBI_MOD_OFFSET);
 		case VK_BACK:
-			return CPNBI_KEY_BACKSPACE | (mod << CPNBI_MOD_OFFSET);
+			return CPNBI_KEY_BACKSPACE
+			       | (mod << CPNBI_MOD_OFFSET);
 		case VK_TAB:
 			return CPNBI_KEY_TAB | (mod << CPNBI_MOD_OFFSET);
 		case VK_UP:
@@ -98,7 +96,8 @@ cpnbi__process_event(INPUT_RECORD* record) {
 		case VK_PRIOR:
 			return CPNBI_KEY_PAGE_UP | (mod << CPNBI_MOD_OFFSET);
 		case VK_NEXT:
-			return CPNBI_KEY_PAGE_DOWN | (mod << CPNBI_MOD_OFFSET);
+			return CPNBI_KEY_PAGE_DOWN
+			       | (mod << CPNBI_MOD_OFFSET);
 		case VK_F1:
 			return CPNBI_KEY_F1 | (mod << CPNBI_MOD_OFFSET);
 		case VK_F2:
@@ -191,11 +190,11 @@ cpnbi_get_event() {
 		if (pending_high) {
 			if (key >= 0xDC00 && key <= 0xDFFF) {
 				int32_t cp = 0x10000
-				    + (pending_high - 0xD800) * 0x400
-				    + (key - 0xDC00);
+				             + (pending_high - 0xD800) * 0x400
+				             + (key - 0xDC00);
 				pending_high = 0;
-				int32_t mod = (res >> CPNBI_MOD_OFFSET)
-				    & CPNBI_MOD_MASK;
+				int32_t mod =
+				    (res >> CPNBI_MOD_OFFSET) & CPNBI_MOD_MASK;
 				return cp | (mod << CPNBI_MOD_OFFSET);
 			}
 			pending_high = 0;
@@ -209,6 +208,11 @@ cpnbi_get_event() {
 
 		return res;
 	}
+}
+
+int32_t
+cpnbi_get_unicode() {
+	return cpnbi_get_event();
 }
 
 #else
@@ -306,27 +310,30 @@ cpnbi_is_event_available(void) {
 
 /* Forward declarations */
 int32_t cpnbi__decode_event(int (*next_byte)(void),
-                            int (*more_available)(void));
+                            int (*more_available)(void),
+                            int utf8);
 static int cpnbi__escape_followup_available(void);
 
-/* Decoded event: escape sequence + UTF-8 decoder.
-   Returns packed int32_t per the CPNBI bit layout.
+/* Decoded event: escape sequence decoder with optional
+   UTF-8 support.  Returns packed int32_t per the CPNBI
+   bit layout.
 
    Bytes are read via next_byte() (blocking).  After
    reading an ESC (0x1B), more_available() is called with
    a short timeout to distinguish lone Esc from the start
    of a multi-byte escape sequence.
 
-   Non-ESC bytes are decoded as UTF-8 if they fall in
-   the multi-byte range (0xC0-0xFD).  Single bytes are
-   returned as Unicode code points directly.
+   When utf8 is non-zero, non-ESC bytes in the multi-byte
+   range (0xC0-0xFD) are decoded as UTF-8 and returned as
+   Unicode code points.  When utf8 is zero, those bytes
+   are returned individually as raw values (0-255).
 
    No timeout on UTF-8 continuation bytes — they arrive
    atomically with the start byte on any well-behaved
    terminal. */
 int32_t
 cpnbi__decode_event(int (*next_byte)(void),
-                    int (*more_available)(void)) {
+                    int (*more_available)(void), int utf8) {
 	int e, key = CPNBI_KEY_NUL, mod = CPNBI_MOD_NONE;
 	int b2, b3, b4;
 
@@ -378,176 +385,83 @@ cpnbi__decode_event(int (*next_byte)(void),
 
 								if (e == 'z') {
 									switch (num) {
-										case 224:
-											key = CPNBI_KEY_F1;
-											break;
-										case 225:
-											key = CPNBI_KEY_F2;
-											break;
-										case 226:
-											key = CPNBI_KEY_F3;
-											break;
-										case 227:
-											key = CPNBI_KEY_F4;
-											break;
-										case 228:
-											key = CPNBI_KEY_F5;
-											break;
-										case 229:
-											key = CPNBI_KEY_F6;
-											break;
-										case 230:
-											key = CPNBI_KEY_F7;
-											break;
-										case 231:
-											key = CPNBI_KEY_F8;
-											break;
-										case 232:
-											key = CPNBI_KEY_F9;
-											break;
-										case 233:
-											key = CPNBI_KEY_F10;
-											break;
-										case 192:
-											key = CPNBI_KEY_F11;
-											break;
-										case 193:
-											key = CPNBI_KEY_F12;
-											break;
+										case 224: key = CPNBI_KEY_F1; break;
+										case 225: key = CPNBI_KEY_F2; break;
+										case 226: key = CPNBI_KEY_F3; break;
+										case 227: key = CPNBI_KEY_F4; break;
+										case 228: key = CPNBI_KEY_F5; break;
+										case 229: key = CPNBI_KEY_F6; break;
+										case 230: key = CPNBI_KEY_F7; break;
+										case 231: key = CPNBI_KEY_F8; break;
+										case 232: key = CPNBI_KEY_F9; break;
+										case 233: key = CPNBI_KEY_F10; break;
+										case 192: key = CPNBI_KEY_F11; break;
+										case 193: key = CPNBI_KEY_F12; break;
 									}
 								} else if (e == '~') {
 									switch (num) {
-										case 1:
-											key = CPNBI_KEY_HOME;
-											break;
-										case 2:
-											key = CPNBI_KEY_INSERT;
-											break;
-										case 3:
-											key = CPNBI_KEY_DELETE;
-											break;
-										case 4:
-											key = CPNBI_KEY_END;
-											break;
-										case 5:
-											key = CPNBI_KEY_PAGE_UP;
-											break;
+										case 1: key = CPNBI_KEY_HOME; break;
+										case 2: key = CPNBI_KEY_INSERT; break;
+										case 3: key = CPNBI_KEY_DELETE; break;
+										case 4: key = CPNBI_KEY_END; break;
+										case 5: key = CPNBI_KEY_PAGE_UP; break;
 										case 6:
 											key = CPNBI_KEY_PAGE_DOWN;
 											break;
-										case 7:
-											key = CPNBI_KEY_HOME;
-											break;
-										case 8:
-											key = CPNBI_KEY_END;
-											break;
-										case 11:
-											key = CPNBI_KEY_F1;
-											break;
-										case 12:
-											key = CPNBI_KEY_F2;
-											break;
-										case 13:
-											key = CPNBI_KEY_F3;
-											break;
-										case 14:
-											key = CPNBI_KEY_F4;
-											break;
-										case 15:
-											key = CPNBI_KEY_F5;
-											break;
-										case 17:
-											key = CPNBI_KEY_F6;
-											break;
-										case 18:
-											key = CPNBI_KEY_F7;
-											break;
-										case 19:
-											key = CPNBI_KEY_F8;
-											break;
-										case 20:
-											key = CPNBI_KEY_F9;
-											break;
-										case 21:
-											key = CPNBI_KEY_F10;
-											break;
-										case 23:
-											key = CPNBI_KEY_F11;
-											break;
-										case 24:
-											key = CPNBI_KEY_F12;
-											break;
+										case 7: key = CPNBI_KEY_HOME; break;
+										case 8: key = CPNBI_KEY_END; break;
+										case 11: key = CPNBI_KEY_F1; break;
+										case 12: key = CPNBI_KEY_F2; break;
+										case 13: key = CPNBI_KEY_F3; break;
+										case 14: key = CPNBI_KEY_F4; break;
+										case 15: key = CPNBI_KEY_F5; break;
+										case 17: key = CPNBI_KEY_F6; break;
+										case 18: key = CPNBI_KEY_F7; break;
+										case 19: key = CPNBI_KEY_F8; break;
+										case 20: key = CPNBI_KEY_F9; break;
+										case 21: key = CPNBI_KEY_F10; break;
+										case 23: key = CPNBI_KEY_F11; break;
+										case 24: key = CPNBI_KEY_F12; break;
 									}
 								} else if (e == ';') {
 									switch (num) {
-										case 1:
-											key = CPNBI_KEY_HOME;
-											break;
-										case 2:
-											key = CPNBI_KEY_INSERT;
-											break;
-										case 3:
-											key = CPNBI_KEY_DELETE;
-											break;
-										case 4:
-											key = CPNBI_KEY_END;
-											break;
-										case 5:
-											key = CPNBI_KEY_PAGE_UP;
-											break;
+										case 1: key = CPNBI_KEY_HOME; break;
+										case 2: key = CPNBI_KEY_INSERT; break;
+										case 3: key = CPNBI_KEY_DELETE; break;
+										case 4: key = CPNBI_KEY_END; break;
+										case 5: key = CPNBI_KEY_PAGE_UP; break;
 										case 6:
 											key = CPNBI_KEY_PAGE_DOWN;
 											break;
 									}
 
 									switch (mod = next_byte()) {
-										case '2':
-											mod = CPNBI_MOD_SHIFT;
-											break;
-										case '3':
-											mod = CPNBI_MOD_ALT;
-											break;
+										case '2': mod = CPNBI_MOD_SHIFT; break;
+										case '3': mod = CPNBI_MOD_ALT; break;
 										case '4':
-											mod = CPNBI_MOD_SHIFT
-											    | CPNBI_MOD_ALT;
+											mod = CPNBI_MOD_SHIFT | CPNBI_MOD_ALT;
 											break;
-										case '5':
-											mod = CPNBI_MOD_CTRL;
-											break;
+										case '5': mod = CPNBI_MOD_CTRL; break;
 										case '6':
-											mod = CPNBI_MOD_SHIFT
-											    | CPNBI_MOD_CTRL;
+											mod =
+											    CPNBI_MOD_SHIFT | CPNBI_MOD_CTRL;
 											break;
 										case '7':
-											mod = CPNBI_MOD_ALT
-											    | CPNBI_MOD_CTRL;
+											mod = CPNBI_MOD_ALT | CPNBI_MOD_CTRL;
 											break;
 										case '8':
-											mod = CPNBI_MOD_SHIFT
-											    | CPNBI_MOD_ALT
-											    | CPNBI_MOD_CTRL;
+											mod = CPNBI_MOD_SHIFT | CPNBI_MOD_ALT
+											      | CPNBI_MOD_CTRL;
 											break;
 									}
 
 									switch (e = next_byte()) {
-										case 'A':
-											key = CPNBI_KEY_UP;
-											break;
-										case 'B':
-											key = CPNBI_KEY_DOWN;
-											break;
-										case 'C':
-											key = CPNBI_KEY_RIGHT;
-											break;
-										case 'D':
-											key = CPNBI_KEY_LEFT;
-											break;
-										case 'H':
-											key = CPNBI_KEY_HOME;
-											break;
-										case 'F':
-											key = CPNBI_KEY_END;
-											break;
+										case 'A': key = CPNBI_KEY_UP; break;
+										case 'B': key = CPNBI_KEY_DOWN; break;
+										case 'C': key = CPNBI_KEY_RIGHT; break;
+										case 'D': key = CPNBI_KEY_LEFT; break;
+										case 'H': key = CPNBI_KEY_HOME; break;
+										case 'F': key = CPNBI_KEY_END; break;
 									}
 								}
 								break;
@@ -559,20 +473,20 @@ cpnbi__decode_event(int (*next_byte)(void),
 		}
 	} else if (e == 27) {
 		key = CPNBI_KEY_ESCAPE;
-	} else if ((e & 0xE0) == 0xC0) {
+	} else if (utf8 && (e & 0xE0) == 0xC0) {
 		b2 = next_byte();
 		key = ((e & 0x1F) << 6) | (b2 & 0x3F);
-	} else if ((e & 0xF0) == 0xE0) {
+	} else if (utf8 && (e & 0xF0) == 0xE0) {
 		b2 = next_byte();
 		b3 = next_byte();
 		key = ((e & 0x0F) << 12) | ((b2 & 0x3F) << 6)
-		    | (b3 & 0x3F);
-	} else if ((e & 0xF8) == 0xF0) {
+		      | (b3 & 0x3F);
+	} else if (utf8 && (e & 0xF8) == 0xF0) {
 		b2 = next_byte();
 		b3 = next_byte();
 		b4 = next_byte();
 		key = ((e & 0x07) << 18) | ((b2 & 0x3F) << 12)
-		    | ((b3 & 0x3F) << 6) | (b4 & 0x3F);
+		      | ((b3 & 0x3F) << 6) | (b4 & 0x3F);
 	} else {
 		key = e;
 	}
@@ -601,7 +515,13 @@ cpnbi__escape_followup_available(void) {
 int32_t
 cpnbi_get_event() {
 	return cpnbi__decode_event(
-	    cpnbi__getch, cpnbi__escape_followup_available);
+	    cpnbi__getch, cpnbi__escape_followup_available, 0);
+}
+
+int32_t
+cpnbi_get_unicode() {
+	return cpnbi__decode_event(
+	    cpnbi__getch, cpnbi__escape_followup_available, 1);
 }
 
 #endif

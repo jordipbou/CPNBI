@@ -15,7 +15,8 @@
 /* Internal symbol, not part of the public header, */
 /* declared here for testing purposes only. */
 int32_t cpnbi__decode_event(int (*next_byte)(void),
-                            int (*more_available)(void));
+                            int (*more_available)(void),
+                            int utf8);
 
 #define PACK_EVENT(k, m) ((k) | ((m) << CPNBI_MOD_OFFSET))
 
@@ -73,7 +74,7 @@ test_plain_char_passes_through_unchanged(void) {
 	script(bytes, 1, 0);
 	TEST_ASSERT_EQUAL_INT(
 	    'a', cpnbi__decode_event(mock_next_byte,
-	                             mock_more_available));
+	                             mock_more_available, 1));
 }
 
 /* --- Lone Esc vs. start of a sequence --- */
@@ -87,7 +88,7 @@ test_lone_escape_key(void) {
 	TEST_ASSERT_EQUAL_INT(
 	    CPNBI_KEY_ESCAPE,
 	    cpnbi__decode_event(mock_next_byte,
-	                        mock_more_available));
+	                        mock_more_available, 1));
 }
 
 /* --- Simple arrows / Home / End, no modifiers --- */
@@ -99,7 +100,7 @@ test_arrow_up(void) {
 	TEST_ASSERT_EQUAL_INT(
 	    CPNBI_KEY_UP,
 	    cpnbi__decode_event(mock_next_byte,
-	                        mock_more_available));
+	                        mock_more_available, 1));
 }
 
 void
@@ -109,7 +110,7 @@ test_arrow_down(void) {
 	TEST_ASSERT_EQUAL_INT(
 	    CPNBI_KEY_DOWN,
 	    cpnbi__decode_event(mock_next_byte,
-	                        mock_more_available));
+	                        mock_more_available, 1));
 }
 
 void
@@ -119,7 +120,7 @@ test_arrow_left(void) {
 	TEST_ASSERT_EQUAL_INT(
 	    CPNBI_KEY_LEFT,
 	    cpnbi__decode_event(mock_next_byte,
-	                        mock_more_available));
+	                        mock_more_available, 1));
 }
 
 void
@@ -129,7 +130,7 @@ test_arrow_right(void) {
 	TEST_ASSERT_EQUAL_INT(
 	    CPNBI_KEY_RIGHT,
 	    cpnbi__decode_event(mock_next_byte,
-	                        mock_more_available));
+	                        mock_more_available, 1));
 }
 
 void
@@ -139,7 +140,7 @@ test_home_short_form(void) {
 	TEST_ASSERT_EQUAL_INT(
 	    CPNBI_KEY_HOME,
 	    cpnbi__decode_event(mock_next_byte,
-	                        mock_more_available));
+	                        mock_more_available, 1));
 }
 
 void
@@ -149,7 +150,7 @@ test_end_short_form(void) {
 	TEST_ASSERT_EQUAL_INT(
 	    CPNBI_KEY_END,
 	    cpnbi__decode_event(mock_next_byte,
-	                        mock_more_available));
+	                        mock_more_available, 1));
 }
 
 void
@@ -159,7 +160,7 @@ test_home_long_form(void) {
 	TEST_ASSERT_EQUAL_INT(
 	    CPNBI_KEY_HOME,
 	    cpnbi__decode_event(mock_next_byte,
-	                        mock_more_available));
+	                        mock_more_available, 1));
 }
 
 /* --- F1-F4 via SS3 (ESC O x) --- */
@@ -171,7 +172,7 @@ test_f1_ss3(void) {
 	TEST_ASSERT_EQUAL_INT(
 	    CPNBI_KEY_F1,
 	    cpnbi__decode_event(mock_next_byte,
-	                        mock_more_available));
+	                        mock_more_available, 1));
 }
 
 void
@@ -181,7 +182,7 @@ test_f4_ss3(void) {
 	TEST_ASSERT_EQUAL_INT(
 	    CPNBI_KEY_F4,
 	    cpnbi__decode_event(mock_next_byte,
-	                        mock_more_available));
+	                        mock_more_available, 1));
 }
 
 /* --- F5-F8 via ESC [ 1n~ --- */
@@ -193,7 +194,7 @@ test_f5(void) {
 	TEST_ASSERT_EQUAL_INT(
 	    CPNBI_KEY_F5,
 	    cpnbi__decode_event(mock_next_byte,
-	                        mock_more_available));
+	                        mock_more_available, 1));
 }
 
 void
@@ -203,7 +204,7 @@ test_f8(void) {
 	TEST_ASSERT_EQUAL_INT(
 	    CPNBI_KEY_F8,
 	    cpnbi__decode_event(mock_next_byte,
-	                        mock_more_available));
+	                        mock_more_available, 1));
 }
 
 /* --- Insert / Delete / PageUp / PageDown --- */
@@ -215,7 +216,7 @@ test_insert(void) {
 	TEST_ASSERT_EQUAL_INT(
 	    CPNBI_KEY_INSERT,
 	    cpnbi__decode_event(mock_next_byte,
-	                        mock_more_available));
+	                        mock_more_available, 1));
 }
 
 void
@@ -225,7 +226,7 @@ test_delete(void) {
 	TEST_ASSERT_EQUAL_INT(
 	    CPNBI_KEY_DELETE,
 	    cpnbi__decode_event(mock_next_byte,
-	                        mock_more_available));
+	                        mock_more_available, 1));
 }
 
 void
@@ -235,7 +236,7 @@ test_page_up(void) {
 	TEST_ASSERT_EQUAL_INT(
 	    CPNBI_KEY_PAGE_UP,
 	    cpnbi__decode_event(mock_next_byte,
-	                        mock_more_available));
+	                        mock_more_available, 1));
 }
 
 void
@@ -245,7 +246,7 @@ test_page_down(void) {
 	TEST_ASSERT_EQUAL_INT(
 	    CPNBI_KEY_PAGE_DOWN,
 	    cpnbi__decode_event(mock_next_byte,
-	                        mock_more_available));
+	                        mock_more_available, 1));
 }
 
 /* --- F9-F12 via ESC [ 2n~ --- */
@@ -257,7 +258,7 @@ test_f9(void) {
 	TEST_ASSERT_EQUAL_INT(
 	    CPNBI_KEY_F9,
 	    cpnbi__decode_event(mock_next_byte,
-	                        mock_more_available));
+	                        mock_more_available, 1));
 }
 
 void
@@ -267,7 +268,7 @@ test_f12(void) {
 	TEST_ASSERT_EQUAL_INT(
 	    CPNBI_KEY_F12,
 	    cpnbi__decode_event(mock_next_byte,
-	                        mock_more_available));
+	                        mock_more_available, 1));
 }
 
 /* --- Modifiers on arrows: ESC [ 1 ; N letter --- */
@@ -279,7 +280,7 @@ test_ctrl_up(void) {
 	TEST_ASSERT_EQUAL_INT(
 	    PACK_EVENT(CPNBI_KEY_UP, CPNBI_MOD_CTRL),
 	    cpnbi__decode_event(mock_next_byte,
-	                        mock_more_available));
+	                        mock_more_available, 1));
 }
 
 void
@@ -289,7 +290,7 @@ test_shift_left(void) {
 	TEST_ASSERT_EQUAL_INT(
 	    PACK_EVENT(CPNBI_KEY_LEFT, CPNBI_MOD_SHIFT),
 	    cpnbi__decode_event(mock_next_byte,
-	                        mock_more_available));
+	                        mock_more_available, 1));
 }
 
 void
@@ -299,7 +300,7 @@ test_alt_right(void) {
 	TEST_ASSERT_EQUAL_INT(
 	    PACK_EVENT(CPNBI_KEY_RIGHT, CPNBI_MOD_ALT),
 	    cpnbi__decode_event(mock_next_byte,
-	                        mock_more_available));
+	                        mock_more_available, 1));
 }
 
 void
@@ -307,11 +308,11 @@ test_shift_ctrl_alt_down(void) {
 	static const int bytes[] = {27, '[', '1', ';', '8', 'B'};
 	script(bytes, 6, 1);
 	TEST_ASSERT_EQUAL_INT(
-	    PACK_EVENT(CPNBI_KEY_DOWN,
-	               CPNBI_MOD_SHIFT | CPNBI_MOD_CTRL
-	                   | CPNBI_MOD_ALT),
+	    PACK_EVENT(CPNBI_KEY_DOWN, CPNBI_MOD_SHIFT
+	                                   | CPNBI_MOD_CTRL
+	                                   | CPNBI_MOD_ALT),
 	    cpnbi__decode_event(mock_next_byte,
-	                        mock_more_available));
+	                        mock_more_available, 1));
 }
 
 /* --- Modifiers on Insert/Delete/PageUp/PageDown/End: 
@@ -324,7 +325,7 @@ test_ctrl_delete(void) {
 	TEST_ASSERT_EQUAL_INT(
 	    PACK_EVENT(CPNBI_KEY_DELETE, CPNBI_MOD_CTRL),
 	    cpnbi__decode_event(mock_next_byte,
-	                        mock_more_available));
+	                        mock_more_available, 1));
 }
 
 void
@@ -334,7 +335,7 @@ test_shift_page_down(void) {
 	TEST_ASSERT_EQUAL_INT(
 	    PACK_EVENT(CPNBI_KEY_PAGE_DOWN, CPNBI_MOD_SHIFT),
 	    cpnbi__decode_event(mock_next_byte,
-	                        mock_more_available));
+	                        mock_more_available, 1));
 }
 
 /* --- get_char loop behavior: non-printable bytes are */
@@ -354,7 +355,7 @@ test_get_char_loop_skips_non_printable_then_finds_printable(
 
 	script(bytes, 2, 0);
 	event = cpnbi__decode_event(mock_next_byte,
-	                            mock_more_available);
+	                            mock_more_available, 1);
 	key = cpnbi_event_key(event);
 	/* First call: non-printable byte (0x01), */
 	/* key < 32, skipped by get_char's loop */
@@ -364,7 +365,7 @@ test_get_char_loop_skips_non_printable_then_finds_printable(
 
 	/* Second call: printable 'a' returned */
 	event = cpnbi__decode_event(mock_next_byte,
-	                            mock_more_available);
+	                            mock_more_available, 1);
 	key = cpnbi_event_key(event);
 	TEST_ASSERT_EQUAL_INT('a', key);
 }
@@ -378,7 +379,7 @@ test_rxvt_home(void) {
 	TEST_ASSERT_EQUAL_INT(
 	    PACK_EVENT(CPNBI_KEY_HOME, CPNBI_MOD_NONE),
 	    cpnbi__decode_event(mock_next_byte,
-	                        mock_more_available));
+	                        mock_more_available, 1));
 }
 
 void
@@ -388,7 +389,7 @@ test_rxvt_end(void) {
 	TEST_ASSERT_EQUAL_INT(
 	    PACK_EVENT(CPNBI_KEY_END, CPNBI_MOD_NONE),
 	    cpnbi__decode_event(mock_next_byte,
-	                        mock_more_available));
+	                        mock_more_available, 1));
 }
 
 /* --- UTF-8 multi-byte decoding --- */
@@ -398,9 +399,8 @@ test_utf8_two_byte(void) {
 	static const int bytes[] = {0xC3, 0xB1};
 	script(bytes, 2, 1);
 	TEST_ASSERT_EQUAL_INT(
-	    0x00F1,
-	    cpnbi__decode_event(mock_next_byte,
-	                        mock_more_available));
+	    0x00F1, cpnbi__decode_event(mock_next_byte,
+	                                mock_more_available, 1));
 }
 
 void
@@ -408,9 +408,8 @@ test_utf8_three_byte(void) {
 	static const int bytes[] = {0xE4, 0xBD, 0xA0};
 	script(bytes, 3, 1);
 	TEST_ASSERT_EQUAL_INT(
-	    0x4F60,
-	    cpnbi__decode_event(mock_next_byte,
-	                        mock_more_available));
+	    0x4F60, cpnbi__decode_event(mock_next_byte,
+	                                mock_more_available, 1));
 }
 
 void
@@ -418,9 +417,55 @@ test_utf8_four_byte(void) {
 	static const int bytes[] = {0xF0, 0x9F, 0x98, 0x82};
 	script(bytes, 4, 1);
 	TEST_ASSERT_EQUAL_INT(
-	    0x1F602,
-	    cpnbi__decode_event(mock_next_byte,
-	                        mock_more_available));
+	    0x1F602, cpnbi__decode_event(mock_next_byte,
+	                                 mock_more_available, 1));
+}
+
+/* --- Raw mode: multi-byte sequences return individual bytes --- */
+
+void
+test_raw_two_byte_returns_separate_bytes(void) {
+	static const int bytes[] = {0xC3, 0xB1};
+	script(bytes, 2, 1);
+	TEST_ASSERT_EQUAL_INT(
+	    0xC3, cpnbi__decode_event(mock_next_byte,
+	                              mock_more_available, 0));
+	TEST_ASSERT_EQUAL_INT(
+	    0xB1, cpnbi__decode_event(mock_next_byte,
+	                              mock_more_available, 0));
+}
+
+void
+test_raw_three_byte_returns_separate_bytes(void) {
+	static const int bytes[] = {0xE4, 0xBD, 0xA0};
+	script(bytes, 3, 1);
+	TEST_ASSERT_EQUAL_INT(
+	    0xE4, cpnbi__decode_event(mock_next_byte,
+	                              mock_more_available, 0));
+	TEST_ASSERT_EQUAL_INT(
+	    0xBD, cpnbi__decode_event(mock_next_byte,
+	                              mock_more_available, 0));
+	TEST_ASSERT_EQUAL_INT(
+	    0xA0, cpnbi__decode_event(mock_next_byte,
+	                              mock_more_available, 0));
+}
+
+void
+test_raw_four_byte_returns_separate_bytes(void) {
+	static const int bytes[] = {0xF0, 0x9F, 0x98, 0x82};
+	script(bytes, 4, 1);
+	TEST_ASSERT_EQUAL_INT(
+	    0xF0, cpnbi__decode_event(mock_next_byte,
+	                              mock_more_available, 0));
+	TEST_ASSERT_EQUAL_INT(
+	    0x9F, cpnbi__decode_event(mock_next_byte,
+	                              mock_more_available, 0));
+	TEST_ASSERT_EQUAL_INT(
+	    0x98, cpnbi__decode_event(mock_next_byte,
+	                              mock_more_available, 0));
+	TEST_ASSERT_EQUAL_INT(
+	    0x82, cpnbi__decode_event(mock_next_byte,
+	                              mock_more_available, 0));
 }
 
 /* --- cpnbi_event_key / cpnbi_event_mod round-trip --- */
@@ -439,9 +484,8 @@ test_accessors_round_trip_shifted_key(void) {
 	                       CPNBI_MOD_SHIFT | CPNBI_MOD_CTRL);
 	TEST_ASSERT_EQUAL_INT(CPNBI_KEY_UP,
 	                      cpnbi_event_key(event));
-	TEST_ASSERT_EQUAL_INT(
-	    CPNBI_MOD_SHIFT | CPNBI_MOD_CTRL,
-	    cpnbi_event_mod(event));
+	TEST_ASSERT_EQUAL_INT(CPNBI_MOD_SHIFT | CPNBI_MOD_CTRL,
+	                      cpnbi_event_mod(event));
 }
 
 void
@@ -482,7 +526,7 @@ test_unrecognized_sequence_reports_nul(void) {
 	TEST_ASSERT_EQUAL_INT(
 	    CPNBI_KEY_NUL,
 	    cpnbi__decode_event(mock_next_byte,
-	                        mock_more_available));
+	                        mock_more_available, 1));
 }
 
 int
@@ -533,6 +577,10 @@ main(void) {
 	RUN_TEST(test_utf8_two_byte);
 	RUN_TEST(test_utf8_three_byte);
 	RUN_TEST(test_utf8_four_byte);
+
+	RUN_TEST(test_raw_two_byte_returns_separate_bytes);
+	RUN_TEST(test_raw_three_byte_returns_separate_bytes);
+	RUN_TEST(test_raw_four_byte_returns_separate_bytes);
 
 	RUN_TEST(test_accessors_round_trip_plain_char);
 	RUN_TEST(test_accessors_round_trip_shifted_key);
