@@ -81,65 +81,51 @@ test_plain_char_is_available_and_read_correctly(void) {
 	TEST_ASSERT_EQUAL_INT('a', cpnbi_get_char());
 }
 
-/* Regression test for the bug: is_char_available() must */
-/* not consume a byte it decides is "not a plain char" */
-/* - e.g. the ESC starting an arrow key. */
+/* is_char_available() returns 1 for ANY byte, */
+/* including non-printable ones like ESC. */
 void
-test_escape_sequence_byte_is_not_lost_by_char_available_check(
-    void) {
-	unsigned char up_arrow[] = {27, '[',
-	                            'A'}; /* ESC [ A = Up arrow */
-	type_bytes(up_arrow, sizeof(up_arrow));
+test_raw_char_available_returns_any_byte(void) {
+	unsigned char esc_byte[] = {27};
+	type_bytes(esc_byte, sizeof(esc_byte));
 
-	/* ESC isn't printable, so this must correctly say */
-	/* "no plain char"... */
-	TEST_ASSERT_EQUAL_INT(0, cpnbi_is_char_available());
-
-	/* ...but the ESC byte must still be there for the event */
-	/* reader. */
-	TEST_ASSERT_EQUAL_INT(1, cpnbi_is_event_available());
-	TEST_ASSERT_EQUAL_INT(CPNBI_KEY_UP, cpnbi_get_event());
+	TEST_ASSERT_EQUAL_INT(1, cpnbi_is_char_available());
+	TEST_ASSERT_EQUAL_INT(27, cpnbi_get_char());
 }
 
+/* Repeated is_char_available() checks must not consume */
+/* the byte.  The event reader must still decode correctly. */
 void
 test_repeated_char_available_checks_are_idempotent(void) {
 	unsigned char up_arrow[] = {27, '[', 'A'};
 	type_bytes(up_arrow, sizeof(up_arrow));
 
-	/* A buggy implementation that drops the first byte */
-	/* will report differently on the second call, since */
-	/* it's now looking at '[' (91), which IS a printable */
-	/* char - exposing the bug directly. */
-	TEST_ASSERT_EQUAL_INT(0, cpnbi_is_char_available());
-	TEST_ASSERT_EQUAL_INT(0, cpnbi_is_char_available());
+	TEST_ASSERT_EQUAL_INT(1, cpnbi_is_char_available());
+	TEST_ASSERT_EQUAL_INT(1, cpnbi_is_char_available());
 
+	/* get_event() should still decode the full sequence */
 	TEST_ASSERT_EQUAL_INT(CPNBI_KEY_UP, cpnbi_get_event());
 }
 
-/* Regression test: get_char() must skip non-printable */
-/* bytes (not return NUL) and wait for the next */
-/* printable character. */
+/* get_char() returns raw bytes with no filtering */
 void
-test_non_printable_byte_skipped_by_get_char(void) {
-	unsigned char input[] = {0x01, 'a'}; /* Ctrl+A + 'a' */
+test_get_char_returns_raw_bytes_in_order(void) {
+	unsigned char input[] = {0x01, 'a'};
 	type_bytes(input, sizeof(input));
 
+	TEST_ASSERT_EQUAL_INT(0x01, cpnbi_get_char());
 	TEST_ASSERT_EQUAL_INT('a', cpnbi_get_char());
 }
 
-/* Regression test: an escape sequence appearing mid- */
-/* stream must be consumed atomically by get_char(), */
-/* not desyncing the stream by dropping only the */
-/* leading ESC (same bug class as point 1) */
+/* get_char() returns raw escape sequence bytes — the */
+/* caller is responsible for interpretation. */
 void
-test_escape_sequence_fully_consumed_by_get_char(void) {
+test_get_char_returns_raw_escape_bytes(void) {
 	unsigned char input[] = {27, '[', 'A', 'b'};
-	/* ESC [ A (up arrow) + 'b' */
 	type_bytes(input, sizeof(input));
 
-	/* get_char() must skip the entire arrow-key */
-	/* sequence (consuming all 3 bytes atomically) */
-	/* and return the 'b' that follows. */
+	TEST_ASSERT_EQUAL_INT(27,  cpnbi_get_char());
+	TEST_ASSERT_EQUAL_INT('[', cpnbi_get_char());
+	TEST_ASSERT_EQUAL_INT('A', cpnbi_get_char());
 	TEST_ASSERT_EQUAL_INT('b', cpnbi_get_char());
 }
 
@@ -208,14 +194,10 @@ int
 main(void) {
 	UNITY_BEGIN();
 	RUN_TEST(test_plain_char_is_available_and_read_correctly);
-	RUN_TEST(
-	    test_escape_sequence_byte_is_not_lost_by_char_available_check);
-	RUN_TEST(
-	    test_repeated_char_available_checks_are_idempotent);
-	RUN_TEST(
-	    test_non_printable_byte_skipped_by_get_char);
-	RUN_TEST(
-	    test_escape_sequence_fully_consumed_by_get_char);
+	RUN_TEST(test_raw_char_available_returns_any_byte);
+	RUN_TEST(test_repeated_char_available_checks_are_idempotent);
+	RUN_TEST(test_get_char_returns_raw_bytes_in_order);
+	RUN_TEST(test_get_char_returns_raw_escape_bytes);
 	RUN_TEST(
 	    test_delayed_escape_sequence_still_decoded_correctly);
 	RUN_TEST(

@@ -14,10 +14,10 @@
 
 /* Internal symbol, not part of the public header, */
 /* declared here for testing purposes only. */
-int cpnbi__decode_event(int (*next_byte)(void),
-                        int (*more_available)(void));
+int32_t cpnbi__decode_event(int (*next_byte)(void),
+                            int (*more_available)(void));
 
-#define PACK_EVENT(k, m) ((k) | ((m) << 16))
+#define PACK_EVENT(k, m) ((k) | ((m) << CPNBI_MOD_OFFSET))
 
 /* --- Mock infrastructure --- */
 
@@ -391,6 +391,38 @@ test_rxvt_end(void) {
 	                        mock_more_available));
 }
 
+/* --- UTF-8 multi-byte decoding --- */
+
+void
+test_utf8_two_byte(void) {
+	static const int bytes[] = {0xC3, 0xB1};
+	script(bytes, 2, 1);
+	TEST_ASSERT_EQUAL_INT(
+	    0x00F1,
+	    cpnbi__decode_event(mock_next_byte,
+	                        mock_more_available));
+}
+
+void
+test_utf8_three_byte(void) {
+	static const int bytes[] = {0xE4, 0xBD, 0xA0};
+	script(bytes, 3, 1);
+	TEST_ASSERT_EQUAL_INT(
+	    0x4F60,
+	    cpnbi__decode_event(mock_next_byte,
+	                        mock_more_available));
+}
+
+void
+test_utf8_four_byte(void) {
+	static const int bytes[] = {0xF0, 0x9F, 0x98, 0x82};
+	script(bytes, 4, 1);
+	TEST_ASSERT_EQUAL_INT(
+	    0x1F602,
+	    cpnbi__decode_event(mock_next_byte,
+	                        mock_more_available));
+}
+
 /* --- cpnbi_event_key / cpnbi_event_mod round-trip --- */
 
 void
@@ -410,6 +442,36 @@ test_accessors_round_trip_shifted_key(void) {
 	TEST_ASSERT_EQUAL_INT(
 	    CPNBI_MOD_SHIFT | CPNBI_MOD_CTRL,
 	    cpnbi_event_mod(event));
+}
+
+void
+test_event_type_always_press(void) {
+	int event = PACK_EVENT('a', CPNBI_MOD_NONE);
+	TEST_ASSERT_EQUAL_INT(0, cpnbi_event_type(event));
+
+	event = PACK_EVENT(CPNBI_KEY_UP, CPNBI_MOD_SHIFT);
+	TEST_ASSERT_EQUAL_INT(0, cpnbi_event_type(event));
+}
+
+void
+test_event_is_special_detects_unicode(void) {
+	int event = PACK_EVENT('a', CPNBI_MOD_NONE);
+	TEST_ASSERT_EQUAL_INT(0, cpnbi_event_is_special(event));
+
+	event = PACK_EVENT(0x00F1, CPNBI_MOD_NONE);
+	TEST_ASSERT_EQUAL_INT(0, cpnbi_event_is_special(event));
+
+	event = PACK_EVENT(0x1F602, CPNBI_MOD_NONE);
+	TEST_ASSERT_EQUAL_INT(0, cpnbi_event_is_special(event));
+}
+
+void
+test_event_is_special_detects_special_keys(void) {
+	int event = PACK_EVENT(CPNBI_KEY_UP, CPNBI_MOD_NONE);
+	TEST_ASSERT_EQUAL_INT(1, cpnbi_event_is_special(event));
+
+	event = PACK_EVENT(CPNBI_KEY_F1, CPNBI_MOD_SHIFT);
+	TEST_ASSERT_EQUAL_INT(1, cpnbi_event_is_special(event));
 }
 
 void
@@ -468,8 +530,15 @@ main(void) {
 	RUN_TEST(test_rxvt_home);
 	RUN_TEST(test_rxvt_end);
 
+	RUN_TEST(test_utf8_two_byte);
+	RUN_TEST(test_utf8_three_byte);
+	RUN_TEST(test_utf8_four_byte);
+
 	RUN_TEST(test_accessors_round_trip_plain_char);
 	RUN_TEST(test_accessors_round_trip_shifted_key);
+	RUN_TEST(test_event_type_always_press);
+	RUN_TEST(test_event_is_special_detects_unicode);
+	RUN_TEST(test_event_is_special_detects_special_keys);
 
 	return UNITY_END();
 }
