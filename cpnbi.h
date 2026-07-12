@@ -41,6 +41,12 @@
 #define CPNBI_MOD_CAPS_LOCK       (1 << 6)
 #define CPNBI_MOD_NUM_LOCK        (1 << 7)
 
+/* Returned by cpnbi_get_char / cpnbi_get_event /
+   cpnbi_get_unicode when the input stream ends (terminal:
+   Ctrl+D, or stdin closed; pipe/file: end of data). Callers
+   must check for this and stop reading. */
+#define CPNBI_EOF                 (-1)
+
 #define CPNBI_KEY_NUL             0
 #define CPNBI_KEY_BACKSPACE       8
 #define CPNBI_KEY_TAB             9
@@ -83,6 +89,13 @@ int cpnbi_is_event_available();
 int32_t cpnbi_get_char();
 int32_t cpnbi_get_event();
 int32_t cpnbi_get_unicode();
+/* get_char / get_event / get_unicode block until input is
+   available in a real terminal, but when stdin is a pipe or
+   file they block only until the end of the stream, then
+   return CPNBI_EOF. is_char_available / is_event_available
+   return 1 if a read will not block - including at EOF.
+   Raw (non-canonical) mode is applied only when stdin is a
+   real TTY; piped input is read as-is. */
 int32_t cpnbi_event_key(int32_t event);
 int32_t cpnbi_event_mod(int32_t event);
 int32_t cpnbi_event_type(int32_t event);

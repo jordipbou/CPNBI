@@ -229,10 +229,14 @@ cpnbi_get_unicode() {
 #include "cpnbi.h"
 
 static struct termios orig_termios;
+static int cpnbi__is_tty;
+static int cpnbi__eof;
 
 void
 cpnbi__shutdown() {
-	tcsetattr(STDIN_FILENO, TCSANOW, &orig_termios);
+	if (cpnbi__is_tty) {
+		tcsetattr(STDIN_FILENO, TCSANOW, &orig_termios);
+	}
 }
 
 static void
@@ -244,25 +248,41 @@ cpnbi__signal_handler(int signum) {
 
 void
 cpnbi_init() {
-	struct termios raw;
+	cpnbi__eof = 0;
+	cpnbi__is_tty = isatty(STDIN_FILENO);
 
-	tcgetattr(STDIN_FILENO, &orig_termios);
-	raw = orig_termios;
-	raw.c_lflag &= ~(ICANON | ECHO);
-	raw.c_cc[VMIN] = 1;
-	raw.c_cc[VTIME] = 0;
-	tcsetattr(STDIN_FILENO, TCSANOW, &raw);
+	if (!cpnbi__is_tty) {
+		return;
+	}
 
-	atexit(cpnbi__shutdown);
-	signal(SIGINT, cpnbi__signal_handler);
-	signal(SIGTERM, cpnbi__signal_handler);
+	{
+		struct termios raw;
+
+		tcgetattr(STDIN_FILENO, &orig_termios);
+		raw = orig_termios;
+		raw.c_lflag &= ~(ICANON | ECHO);
+		raw.c_cc[VMIN] = 1;
+		raw.c_cc[VTIME] = 0;
+		tcsetattr(STDIN_FILENO, TCSANOW, &raw);
+
+		atexit(cpnbi__shutdown);
+		signal(SIGINT, cpnbi__signal_handler);
+		signal(SIGTERM, cpnbi__signal_handler);
+	}
 }
 
 /* Raw byte read from stdin. Blocking.
-   Returns 0-255 on success, -1 on EOF/error. */
+   Returns 0-255 on success, CPNBI_EOF on end of stream. */
 int32_t
 cpnbi_get_char() {
-	return (int32_t)getchar();
+	int ch = getchar();
+
+	if (ch == EOF) {
+		cpnbi__eof = 1;
+		return CPNBI_EOF;
+	}
+
+	return (int32_t)ch;
 }
 
 int32_t
@@ -270,8 +290,11 @@ cpnbi__getch() {
 	return cpnbi_get_char();
 }
 
-int
-cpnbi_is_char_available(void) {
+/* Returns 1 if a real byte can be read now without
+   blocking, 0 if a read would block, -1 at end-of-stream.
+   Sets cpnbi__eof on the EOF path. */
+static int
+cpnbi__data_available(void) {
 	int ch;
 	int oldf;
 
@@ -281,6 +304,10 @@ cpnbi_is_char_available(void) {
 	fcntl(STDIN_FILENO, F_SETFL, oldf);
 
 	if (ch == EOF) {
+		if (feof(stdin)) {
+			cpnbi__eof = 1;
+			return -1;
+		}
 		return 0;
 	}
 
@@ -288,24 +315,21 @@ cpnbi_is_char_available(void) {
 	return 1;
 }
 
+/* Public availability: 1 if a read will not block, which
+   includes end-of-stream (get_*() then returns CPNBI_EOF). */
+static int
+cpnbi__byte_available(void) {
+	return cpnbi__data_available() != 0 || cpnbi__eof;
+}
+
+int
+cpnbi_is_char_available(void) {
+	return cpnbi__byte_available();
+}
+
 int
 cpnbi_is_event_available(void) {
-	int ch;
-	int oldf;
-
-	oldf = fcntl(STDIN_FILENO, F_GETFL, 0);
-	fcntl(STDIN_FILENO, F_SETFL, oldf | O_NONBLOCK);
-
-	ch = getchar();
-
-	fcntl(STDIN_FILENO, F_SETFL, oldf);
-
-	if (ch != EOF) {
-		ungetc(ch, stdin);
-		return 1;
-	}
-
-	return 0;
+	return cpnbi__byte_available();
 }
 
 /* Forward declarations */
@@ -337,11 +361,24 @@ cpnbi__decode_event(int (*next_byte)(void),
 	int e, key = CPNBI_KEY_NUL, mod = CPNBI_MOD_NONE;
 	int b2, b3, b4;
 
-	if ((e = next_byte()) == 27 && more_available()) {
+	/* Read one byte, propagating end-of-stream. A negative
+	   value returned by next_byte() is CPNBI_EOF. */
+#define CPNBI_NB(x)                                        \
+	do {                                                     \
+		(x) = next_byte();                                     \
+		if ((x) < 0)                                           \
+			return CPNBI_EOF;                                    \
+	} while (0)
+
+	CPNBI_NB(e);
+
+	if (e == 27 && more_available()) {
 		/* ANSI escape sequence (Linux only) */
-		switch (e = next_byte()) {
+		CPNBI_NB(e);
+		switch (e) {
 			case 'O':
-				switch (e = next_byte()) {
+				CPNBI_NB(e);
+				switch (e) {
 					case 'P': key = CPNBI_KEY_F1; break;
 					case 'Q': key = CPNBI_KEY_F2; break;
 					case 'R': key = CPNBI_KEY_F3; break;
@@ -349,7 +386,8 @@ cpnbi__decode_event(int (*next_byte)(void),
 				}
 				break;
 			case '[':
-				switch (e = next_byte()) {
+				CPNBI_NB(e);
+				switch (e) {
 					case 'A': key = CPNBI_KEY_UP; break;
 					case 'B': key = CPNBI_KEY_DOWN; break;
 					case 'C': key = CPNBI_KEY_RIGHT; break;
@@ -357,7 +395,8 @@ cpnbi__decode_event(int (*next_byte)(void),
 					case 'H': key = CPNBI_KEY_HOME; break;
 					case 'F': key = CPNBI_KEY_END; break;
 					case '[':
-						switch (e = next_byte()) {
+						CPNBI_NB(e);
+						switch (e) {
 							case 'A': key = CPNBI_KEY_F1; break;
 							case 'B': key = CPNBI_KEY_F2; break;
 							case 'C': key = CPNBI_KEY_F3; break;
@@ -378,8 +417,11 @@ cpnbi__decode_event(int (*next_byte)(void),
 							case '9': {
 								int num = e - '0';
 
-								while ((e = next_byte()) >= '0'
-								       && e <= '9') {
+								while (1) {
+									CPNBI_NB(e);
+									if (e < '0' || e > '9') {
+										break;
+									}
 									num = num * 10 + (e - '0');
 								}
 
@@ -435,7 +477,8 @@ cpnbi__decode_event(int (*next_byte)(void),
 											break;
 									}
 
-									switch (mod = next_byte()) {
+									CPNBI_NB(mod);
+									switch (mod) {
 										case '2': mod = CPNBI_MOD_SHIFT; break;
 										case '3': mod = CPNBI_MOD_ALT; break;
 										case '4':
@@ -455,7 +498,8 @@ cpnbi__decode_event(int (*next_byte)(void),
 											break;
 									}
 
-									switch (e = next_byte()) {
+									CPNBI_NB(e);
+									switch (e) {
 										case 'A': key = CPNBI_KEY_UP; break;
 										case 'B': key = CPNBI_KEY_DOWN; break;
 										case 'C': key = CPNBI_KEY_RIGHT; break;
@@ -474,32 +518,47 @@ cpnbi__decode_event(int (*next_byte)(void),
 	} else if (e == 27) {
 		key = CPNBI_KEY_ESCAPE;
 	} else if (utf8 && (e & 0xE0) == 0xC0) {
-		b2 = next_byte();
+		CPNBI_NB(b2);
 		key = ((e & 0x1F) << 6) | (b2 & 0x3F);
 	} else if (utf8 && (e & 0xF0) == 0xE0) {
-		b2 = next_byte();
-		b3 = next_byte();
+		CPNBI_NB(b2);
+		CPNBI_NB(b3);
 		key = ((e & 0x0F) << 12) | ((b2 & 0x3F) << 6)
 		      | (b3 & 0x3F);
 	} else if (utf8 && (e & 0xF8) == 0xF0) {
-		b2 = next_byte();
-		b3 = next_byte();
-		b4 = next_byte();
+		CPNBI_NB(b2);
+		CPNBI_NB(b3);
+		CPNBI_NB(b4);
 		key = ((e & 0x07) << 18) | ((b2 & 0x3F) << 12)
 		      | ((b3 & 0x3F) << 6) | (b4 & 0x3F);
 	} else {
 		key = e;
 	}
 
+#undef CPNBI_NB
+
 	return key | (mod << CPNBI_MOD_OFFSET);
 }
 
 static int
 cpnbi__escape_followup_available(void) {
-	fd_set fds;
-	struct timeval tv;
+	int r = cpnbi__data_available();
 
-	if (!cpnbi_is_event_available()) {
+	if (r > 0) {
+		return 1;
+	}
+
+	if (r < 0) {
+		return 0;
+	}
+
+	/* No byte available yet: wait briefly for the rest of an
+	   escape sequence to arrive (terminal only - a pipe has
+	   all its bytes immediately or is already at EOF). */
+	{
+		fd_set fds;
+		struct timeval tv;
+
 		FD_ZERO(&fds);
 		FD_SET(STDIN_FILENO, &fds);
 		tv.tv_sec = 0;
@@ -508,8 +567,6 @@ cpnbi__escape_followup_available(void) {
 		return select(STDIN_FILENO + 1, &fds, NULL, NULL, &tv)
 		       > 0;
 	}
-
-	return 1;
 }
 
 int32_t

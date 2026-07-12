@@ -518,6 +518,48 @@ test_event_is_special_detects_special_keys(void) {
 	TEST_ASSERT_EQUAL_INT(1, cpnbi_event_is_special(event));
 }
 
+/* --- End-of-stream (CPNBI_EOF) propagation --- */
+
+void
+test_decode_eof_at_start(void) {
+	static const int bytes[] = {-1};
+	script(bytes, 1, 0);
+	TEST_ASSERT_EQUAL_INT(
+	    CPNBI_EOF,
+	    cpnbi__decode_event(mock_next_byte,
+	                        mock_more_available, 1));
+}
+
+void
+test_decode_eof_mid_sequence(void) {
+	static const int bytes[] = {27, '[', -1};
+	script(bytes, 3, 1);
+	TEST_ASSERT_EQUAL_INT(
+	    CPNBI_EOF,
+	    cpnbi__decode_event(mock_next_byte,
+	                        mock_more_available, 1));
+}
+
+void
+test_decode_eof_in_utf8_continuation(void) {
+	static const int bytes[] = {0xC3, -1};
+	script(bytes, 2, 1);
+	TEST_ASSERT_EQUAL_INT(
+	    CPNBI_EOF,
+	    cpnbi__decode_event(mock_next_byte,
+	                        mock_more_available, 1));
+}
+
+void
+test_decode_lone_escape_then_eof(void) {
+	static const int bytes[] = {27, -1};
+	script(bytes, 2, 0);
+	TEST_ASSERT_EQUAL_INT(
+	    CPNBI_KEY_ESCAPE,
+	    cpnbi__decode_event(mock_next_byte,
+	                        mock_more_available, 1));
+}
+
 void
 test_unrecognized_sequence_reports_nul(void) {
 	static const int bytes[] = {
@@ -567,6 +609,11 @@ main(void) {
 	RUN_TEST(test_shift_page_down);
 
 	RUN_TEST(test_unrecognized_sequence_reports_nul);
+
+	RUN_TEST(test_decode_eof_at_start);
+	RUN_TEST(test_decode_eof_mid_sequence);
+	RUN_TEST(test_decode_eof_in_utf8_continuation);
+	RUN_TEST(test_decode_lone_escape_then_eof);
 
 	RUN_TEST(
 	    test_get_char_loop_skips_non_printable_then_finds_printable);

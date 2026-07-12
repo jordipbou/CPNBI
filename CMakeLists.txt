@@ -48,6 +48,11 @@ if (NOT WIN32)
 	target_link_libraries(test_decoder PRIVATE cpnbi_lib unity)
 	add_test(NAME decoder COMMAND test_decoder)
 
+	## Test pipe (non-TTY) input
+	add_executable(test_pipe_io tests/test_pipe_io.c)
+	target_link_libraries(test_pipe_io PRIVATE cpnbi_lib unity)
+	add_test(NAME pipe_io COMMAND test_pipe_io)
+
 	## Test termios lifecycle
 	add_executable(test_termios_lifecycle 
 		tests/test_termios_lifecycle.c)
