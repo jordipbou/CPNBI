@@ -560,6 +560,53 @@ test_decode_lone_escape_then_eof(void) {
 	                        mock_more_available, 1));
 }
 
+/* --- Modified function keys: ESC [ n ; M ~ --- */
+
+void
+test_ctrl_f5(void) {
+	static const int bytes[] = {27,  '[', '1', '5',
+	                            ';', '5', '~'};
+	script(bytes, 7, 1);
+	TEST_ASSERT_EQUAL_INT(
+	    PACK_EVENT(CPNBI_KEY_F5, CPNBI_MOD_CTRL),
+	    cpnbi__decode_event(mock_next_byte,
+	                        mock_more_available, 1));
+}
+
+void
+test_shift_f12(void) {
+	static const int bytes[] = {27,  '[', '2', '4',
+	                            ';', '2', '~'};
+	script(bytes, 7, 1);
+	TEST_ASSERT_EQUAL_INT(
+	    PACK_EVENT(CPNBI_KEY_F12, CPNBI_MOD_SHIFT),
+	    cpnbi__decode_event(mock_next_byte,
+	                        mock_more_available, 1));
+}
+
+void
+test_ctrl_f1_application_form(void) {
+	static const int bytes[] = {27,  '[', '1', '1',
+	                            ';', '5', '~'};
+	script(bytes, 7, 1);
+	TEST_ASSERT_EQUAL_INT(
+	    PACK_EVENT(CPNBI_KEY_F1, CPNBI_MOD_CTRL),
+	    cpnbi__decode_event(mock_next_byte,
+	                        mock_more_available, 1));
+}
+
+void
+test_alt_ctrl_f6(void) {
+	static const int bytes[] = {27,  '[', '1', '7',
+	                            ';', '7', '~'};
+	script(bytes, 7, 1);
+	TEST_ASSERT_EQUAL_INT(
+	    PACK_EVENT(CPNBI_KEY_F6,
+	               CPNBI_MOD_ALT | CPNBI_MOD_CTRL),
+	    cpnbi__decode_event(mock_next_byte,
+	                        mock_more_available, 1));
+}
+
 void
 test_unrecognized_sequence_reports_nul(void) {
 	static const int bytes[] = {
@@ -607,6 +654,11 @@ main(void) {
 
 	RUN_TEST(test_ctrl_delete);
 	RUN_TEST(test_shift_page_down);
+
+	RUN_TEST(test_ctrl_f5);
+	RUN_TEST(test_shift_f12);
+	RUN_TEST(test_ctrl_f1_application_form);
+	RUN_TEST(test_alt_ctrl_f6);
 
 	RUN_TEST(test_unrecognized_sequence_reports_nul);
 

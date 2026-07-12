@@ -475,6 +475,20 @@ cpnbi__decode_event(int (*next_byte)(void),
 										case 6:
 											key = CPNBI_KEY_PAGE_DOWN;
 											break;
+										case 7: key = CPNBI_KEY_HOME; break;
+										case 8: key = CPNBI_KEY_END; break;
+										case 11: key = CPNBI_KEY_F1; break;
+										case 12: key = CPNBI_KEY_F2; break;
+										case 13: key = CPNBI_KEY_F3; break;
+										case 14: key = CPNBI_KEY_F4; break;
+										case 15: key = CPNBI_KEY_F5; break;
+										case 17: key = CPNBI_KEY_F6; break;
+										case 18: key = CPNBI_KEY_F7; break;
+										case 19: key = CPNBI_KEY_F8; break;
+										case 20: key = CPNBI_KEY_F9; break;
+										case 21: key = CPNBI_KEY_F10; break;
+										case 23: key = CPNBI_KEY_F11; break;
+										case 24: key = CPNBI_KEY_F12; break;
 									}
 
 									CPNBI_NB(mod);
