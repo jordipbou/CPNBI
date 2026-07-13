@@ -79,9 +79,9 @@ for characters above U+FFFF).
 | Function | Description |
 |---|---|
 | `cpnbi_init()` | Initialize raw mode and signal handlers. Call once at startup. Raw mode is only applied when stdin is a real terminal; piped input is read as-is. |
-| `cpnbi_is_char_available()` | Non-blocking check if a raw byte is ready to read. Returns 1 if a read will not block — including at end of stream. |
+| `cpnbi_is_byte_available()` | Non-blocking check if a raw byte is ready to read. Returns 1 if a read will not block — including at end of stream. |
 | `cpnbi_is_event_available()` | Non-blocking check if an event is ready to read. Returns 1 if a read will not block — including at end of stream. |
-| `cpnbi_get_char()` | Read one raw byte from stdin (blocking). Returns 0–255, or `CPNBI_EOF` (−1) at end of stream. |
+| `cpnbi_get_byte()` | Read one raw byte from stdin (blocking). Returns 0–255, or `CPNBI_EOF` (−1) at end of stream. |
 | `cpnbi_get_event()` | Read next event. Escape sequences are decoded into special keys; text bytes are returned individually (0–255). Returns `CPNBI_EOF` at end of stream. |
 | `cpnbi_get_unicode()` | Read next event. Escape sequences are decoded; UTF-8 multi-byte sequences are assembled into Unicode code points. Returns `CPNBI_EOF` at end of stream. |
 | `cpnbi_event_key(event)` | Extract the value field from a packed event (raw byte, Unicode code point, or special key). |

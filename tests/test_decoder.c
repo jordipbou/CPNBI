@@ -338,14 +338,14 @@ test_shift_page_down(void) {
 	                        mock_more_available, 1));
 }
 
-/* --- get_char loop behavior: non-printable bytes are */
+/* --- get_byte loop behavior: non-printable bytes are */
 /*     skipped, the decoder advances past them          */
 /*     atomically without losing position                */
 
 void
-test_get_char_loop_skips_non_printable_then_finds_printable(
+test_get_byte_loop_skips_non_printable_then_finds_printable(
     void) {
-	/* Mimics what cpnbi_get_char() does internally: */
+	/* Mimics what cpnbi_get_byte() does internally: */
 	/* call cpnbi__decode_event() in a loop, ignoring */
 	/* non-printable results until a printable one */
 	/* appears.                                        */
@@ -358,7 +358,7 @@ test_get_char_loop_skips_non_printable_then_finds_printable(
 	                            mock_more_available, 1);
 	key = cpnbi_event_key(event);
 	/* First call: non-printable byte (0x01), */
-	/* key < 32, skipped by get_char's loop */
+	/* key < 32, skipped by get_byte's loop */
 	TEST_ASSERT_TRUE_MESSAGE(
 	    key < 32 || key > 126,
 	    "first byte should not be printable");
@@ -668,7 +668,7 @@ main(void) {
 	RUN_TEST(test_decode_lone_escape_then_eof);
 
 	RUN_TEST(
-	    test_get_char_loop_skips_non_printable_then_finds_printable);
+	    test_get_byte_loop_skips_non_printable_then_finds_printable);
 
 	RUN_TEST(test_rxvt_home);
 	RUN_TEST(test_rxvt_end);

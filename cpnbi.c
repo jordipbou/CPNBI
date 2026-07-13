@@ -259,7 +259,7 @@ cpnbi__win_byte_available(void) {
 }
 
 int
-cpnbi_is_char_available() {
+cpnbi_is_byte_available() {
 	if (cpnbi__is_console) {
 		return _kbhit();
 	}
@@ -293,7 +293,7 @@ cpnbi_is_event_available() {
 /* Raw byte read — the building block.
    Returns 0-255 on success. Blocking. */
 int32_t
-cpnbi_get_char() {
+cpnbi_get_byte() {
 	if (cpnbi__is_console) {
 		return _getch();
 	}
@@ -422,7 +422,7 @@ cpnbi_init() {
 /* Raw byte read from stdin. Blocking.
    Returns 0-255 on success, CPNBI_EOF on end of stream. */
 int32_t
-cpnbi_get_char() {
+cpnbi_get_byte() {
 	int ch = getchar();
 
 	if (ch == EOF) {
@@ -435,7 +435,7 @@ cpnbi_get_char() {
 
 int32_t
 cpnbi__getch() {
-	return cpnbi_get_char();
+	return cpnbi_get_byte();
 }
 
 /* Returns 1 if a real byte can be read now without
@@ -471,7 +471,7 @@ cpnbi__byte_available(void) {
 }
 
 int
-cpnbi_is_char_available(void) {
+cpnbi_is_byte_available(void) {
 	return cpnbi__byte_available();
 }
 

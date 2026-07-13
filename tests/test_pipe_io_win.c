@@ -5,10 +5,10 @@
  * bytes through an anonymous pipe redirected onto the process
  * standard input handle and driving the same public API:
  *   - cpnbi_init() does NOT put a pipe into raw mode
- *   - get_char / get_event / get_unicode stream bytes and
+ *   - get_byte / get_event / get_unicode stream bytes and
  *     decode sequences/UTF-8 transparently
  *   - at end of stream they return CPNBI_EOF
- *   - is_char_available / is_event_available return 1 when a
+ *   - is_byte_available / is_event_available return 1 when a
  *     read will not block, including at EOF, and 0 only when
  *     a read would actually block
  *
@@ -115,19 +115,19 @@ test_pipe_char_stream_then_eof(void) {
 
 	pipe_setup(in, sizeof(in));
 
-	TEST_ASSERT_EQUAL_INT(1, cpnbi_is_char_available());
-	TEST_ASSERT_EQUAL_INT('a', cpnbi_get_char());
-	TEST_ASSERT_EQUAL_INT('b', cpnbi_get_char());
-	TEST_ASSERT_EQUAL_INT('c', cpnbi_get_char());
+	TEST_ASSERT_EQUAL_INT(1, cpnbi_is_byte_available());
+	TEST_ASSERT_EQUAL_INT('a', cpnbi_get_byte());
+	TEST_ASSERT_EQUAL_INT('b', cpnbi_get_byte());
+	TEST_ASSERT_EQUAL_INT('c', cpnbi_get_byte());
 
 	/* End of stream: a read won't block, so availability is 1
 	   and the next read yields CPNBI_EOF. */
-	TEST_ASSERT_EQUAL_INT(1, cpnbi_is_char_available());
-	TEST_ASSERT_EQUAL_INT(CPNBI_EOF, cpnbi_get_char());
+	TEST_ASSERT_EQUAL_INT(1, cpnbi_is_byte_available());
+	TEST_ASSERT_EQUAL_INT(CPNBI_EOF, cpnbi_get_byte());
 
 	/* Idempotent at EOF - the caller is expected to break. */
-	TEST_ASSERT_EQUAL_INT(1, cpnbi_is_char_available());
-	TEST_ASSERT_EQUAL_INT(CPNBI_EOF, cpnbi_get_char());
+	TEST_ASSERT_EQUAL_INT(1, cpnbi_is_byte_available());
+	TEST_ASSERT_EQUAL_INT(CPNBI_EOF, cpnbi_get_byte());
 
 	pipe_teardown();
 }
@@ -179,20 +179,20 @@ test_pipe_available_reports_blocking_vs_ready(void) {
 	pipe_setup_open();
 
 	/* Write end open, no data yet: a read would block. */
-	TEST_ASSERT_EQUAL_INT(0, cpnbi_is_char_available());
+	TEST_ASSERT_EQUAL_INT(0, cpnbi_is_byte_available());
 
 	TEST_ASSERT_TRUE(WriteFile(pipe_write, &byte, 1, &written,
 	                          NULL));
 
-	TEST_ASSERT_EQUAL_INT(1, cpnbi_is_char_available());
-	TEST_ASSERT_EQUAL_INT('x', cpnbi_get_char());
+	TEST_ASSERT_EQUAL_INT(1, cpnbi_is_byte_available());
+	TEST_ASSERT_EQUAL_INT('x', cpnbi_get_byte());
 
 	/* Close the write end: next read sees EOF without blocking. */
 	CloseHandle(pipe_write);
 	pipe_write = INVALID_HANDLE_VALUE;
 
-	TEST_ASSERT_EQUAL_INT(1, cpnbi_is_char_available());
-	TEST_ASSERT_EQUAL_INT(CPNBI_EOF, cpnbi_get_char());
+	TEST_ASSERT_EQUAL_INT(1, cpnbi_is_byte_available());
+	TEST_ASSERT_EQUAL_INT(CPNBI_EOF, cpnbi_get_byte());
 
 	pipe_teardown_open();
 }

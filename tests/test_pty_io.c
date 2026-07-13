@@ -77,56 +77,56 @@ test_plain_char_is_available_and_read_correctly(void) {
 	unsigned char input[] = {'a'};
 	type_bytes(input, sizeof(input));
 
-	TEST_ASSERT_EQUAL_INT(1, cpnbi_is_char_available());
-	TEST_ASSERT_EQUAL_INT('a', cpnbi_get_char());
+	TEST_ASSERT_EQUAL_INT(1, cpnbi_is_byte_available());
+	TEST_ASSERT_EQUAL_INT('a', cpnbi_get_byte());
 }
 
-/* is_char_available() returns 1 for ANY byte, */
+/* is_byte_available() returns 1 for ANY byte, */
 /* including non-printable ones like ESC. */
 void
 test_raw_char_available_returns_any_byte(void) {
 	unsigned char esc_byte[] = {27};
 	type_bytes(esc_byte, sizeof(esc_byte));
 
-	TEST_ASSERT_EQUAL_INT(1, cpnbi_is_char_available());
-	TEST_ASSERT_EQUAL_INT(27, cpnbi_get_char());
+	TEST_ASSERT_EQUAL_INT(1, cpnbi_is_byte_available());
+	TEST_ASSERT_EQUAL_INT(27, cpnbi_get_byte());
 }
 
-/* Repeated is_char_available() checks must not consume */
+/* Repeated is_byte_available() checks must not consume */
 /* the byte.  The event reader must still decode correctly. */
 void
 test_repeated_char_available_checks_are_idempotent(void) {
 	unsigned char up_arrow[] = {27, '[', 'A'};
 	type_bytes(up_arrow, sizeof(up_arrow));
 
-	TEST_ASSERT_EQUAL_INT(1, cpnbi_is_char_available());
-	TEST_ASSERT_EQUAL_INT(1, cpnbi_is_char_available());
+	TEST_ASSERT_EQUAL_INT(1, cpnbi_is_byte_available());
+	TEST_ASSERT_EQUAL_INT(1, cpnbi_is_byte_available());
 
 	/* get_event() should still decode the full sequence */
 	TEST_ASSERT_EQUAL_INT(CPNBI_KEY_UP, cpnbi_get_event());
 }
 
-/* get_char() returns raw bytes with no filtering */
+/* get_byte() returns raw bytes with no filtering */
 void
-test_get_char_returns_raw_bytes_in_order(void) {
+test_get_byte_returns_raw_bytes_in_order(void) {
 	unsigned char input[] = {0x01, 'a'};
 	type_bytes(input, sizeof(input));
 
-	TEST_ASSERT_EQUAL_INT(0x01, cpnbi_get_char());
-	TEST_ASSERT_EQUAL_INT('a', cpnbi_get_char());
+	TEST_ASSERT_EQUAL_INT(0x01, cpnbi_get_byte());
+	TEST_ASSERT_EQUAL_INT('a', cpnbi_get_byte());
 }
 
-/* get_char() returns raw escape sequence bytes — the */
+/* get_byte() returns raw escape sequence bytes — the */
 /* caller is responsible for interpretation. */
 void
-test_get_char_returns_raw_escape_bytes(void) {
+test_get_byte_returns_raw_escape_bytes(void) {
 	unsigned char input[] = {27, '[', 'A', 'b'};
 	type_bytes(input, sizeof(input));
 
-	TEST_ASSERT_EQUAL_INT(27,  cpnbi_get_char());
-	TEST_ASSERT_EQUAL_INT('[', cpnbi_get_char());
-	TEST_ASSERT_EQUAL_INT('A', cpnbi_get_char());
-	TEST_ASSERT_EQUAL_INT('b', cpnbi_get_char());
+	TEST_ASSERT_EQUAL_INT(27,  cpnbi_get_byte());
+	TEST_ASSERT_EQUAL_INT('[', cpnbi_get_byte());
+	TEST_ASSERT_EQUAL_INT('A', cpnbi_get_byte());
+	TEST_ASSERT_EQUAL_INT('b', cpnbi_get_byte());
 }
 
 struct delayed_write_args {
@@ -196,8 +196,8 @@ main(void) {
 	RUN_TEST(test_plain_char_is_available_and_read_correctly);
 	RUN_TEST(test_raw_char_available_returns_any_byte);
 	RUN_TEST(test_repeated_char_available_checks_are_idempotent);
-	RUN_TEST(test_get_char_returns_raw_bytes_in_order);
-	RUN_TEST(test_get_char_returns_raw_escape_bytes);
+	RUN_TEST(test_get_byte_returns_raw_bytes_in_order);
+	RUN_TEST(test_get_byte_returns_raw_escape_bytes);
 	RUN_TEST(
 	    test_delayed_escape_sequence_still_decoded_correctly);
 	RUN_TEST(
