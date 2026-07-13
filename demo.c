@@ -196,10 +196,11 @@ main(int argc, char** argv) {
 		describe_mods(mod, mod_buf, sizeof(mod_buf));
 
 		printf("%sKEY%s  %s%-10s%s  %sMOD%s  %-16s  "
-		       "%sTYPE%s press  %sSPECIAL%s %s%s\n",
+		       "%sTYPE%s press  %sSPECIAL%s %s%s%s\n",
 		       C_DIM, C_RST, C_KEY, key_buf, C_RST, C_DIM,
 		       C_RST, mod_buf, C_DIM, C_RST, C_DIM, C_RST,
-		       special ? C_SPC : "", special ? "yes" : "no");
+		       special ? C_SPC : "", special ? "yes" : "no",
+		       C_RST);
 	}
 
 	fprintf(stderr, "End of input — bye.\n");
