@@ -54,6 +54,16 @@ if (WIN32)
 		unity)
 	add_test(NAME process_event COMMAND test_process_event)
 
+	# Windows-only: verifies redirected (piped) stdin flows
+	# through the shared cpnbi__decode_event() exactly like
+	# the Linux test_pipe_io suite.
+	add_executable(test_pipe_io_win
+		tests/test_pipe_io_win.c)
+	target_link_libraries(test_pipe_io_win PRIVATE
+		cpnbi_lib
+		unity)
+	add_test(NAME pipe_io_win COMMAND test_pipe_io_win)
+
 else()
 
 	# Linux-only: these depend on POSIX facilities (pty,

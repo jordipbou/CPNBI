@@ -9,10 +9,22 @@
 
 static HANDLE hStdin;
 static DWORD orig_mode;
+static int cpnbi__is_console;
+static int cpnbi__is_pipe;
+static int cpnbi__eof;
+static int cpnbi__pushback = -1;
+
+/* Forward declaration - cpnbi__decode_event() is defined once,
+   after the platform #endif, and is shared by both builds. */
+int32_t cpnbi__decode_event(int (*next_byte)(void),
+                            int (*more_available)(void),
+                            int utf8);
 
 void
 cpnbi__shutdown() {
-	SetConsoleMode(hStdin, orig_mode);
+	if (cpnbi__is_console) {
+		SetConsoleMode(hStdin, orig_mode);
+	}
 }
 
 BOOL WINAPI
@@ -29,16 +41,35 @@ cpnbi__ctrl_handler(DWORD ctrl_type) {
 
 void
 cpnbi_init() {
-	DWORD mode = 0;
-
 	hStdin = GetStdHandle(STD_INPUT_HANDLE);
-	GetConsoleMode(hStdin, &orig_mode);
-	mode &= ~(ENABLE_LINE_INPUT | ENABLE_ECHO_INPUT);
-	mode |= ENABLE_WINDOW_INPUT | ENABLE_PROCESSED_INPUT;
-	SetConsoleMode(hStdin, mode);
 
-	atexit(cpnbi__shutdown);
-	SetConsoleCtrlHandler(cpnbi__ctrl_handler, TRUE);
+	/* A real console input handle answers GetConsoleMode.
+	   A redirected pipe or file does not - in that case we
+	   read bytes directly through cpnbi__decode_event() and
+	   never touch console mode. */
+	if (GetConsoleMode(hStdin, &orig_mode)) {
+		DWORD mode = 0;
+
+		cpnbi__is_console = 1;
+		mode &= ~(ENABLE_LINE_INPUT | ENABLE_ECHO_INPUT);
+		mode |= ENABLE_WINDOW_INPUT | ENABLE_PROCESSED_INPUT;
+		SetConsoleMode(hStdin, mode);
+
+		atexit(cpnbi__shutdown);
+		SetConsoleCtrlHandler(cpnbi__ctrl_handler, TRUE);
+	} else {
+		cpnbi__is_console = 0;
+		cpnbi__eof = 0;
+		cpnbi__pushback = -1;
+		cpnbi__is_pipe =
+		    (GetFileType(hStdin) == FILE_TYPE_PIPE);
+		if (cpnbi__is_pipe) {
+			DWORD nowait = PIPE_NOWAIT;
+
+			SetNamedPipeHandleState(hStdin, &nowait,
+			                        NULL, NULL);
+		}
+	}
 }
 
 /* Process a single INPUT_RECORD and return a packed event
@@ -133,36 +164,140 @@ cpnbi__process_event(INPUT_RECORD* record) {
 	return 0;
 }
 
+/* --- Redirected (pipe/file) input primitives --- */
+/* These feed cpnbi__decode_event() the same way the Linux
+   implementation feeds it: one raw byte at a time, with a
+   non-consuming peek for lone-Esc disambiguation. A pipe is
+   put in PIPE_NOWAIT so a read that would block returns
+   immediately (EAGAIN) instead of stalling. */
+
+static int
+cpnbi__win_try_read(unsigned char* out) {
+	/* 1 = byte read, 0 = EOF, -1 = would block */
+	DWORD n = 0;
+
+	if (ReadFile(hStdin, out, 1, &n, NULL)) {
+		if (n == 1) {
+			return 1;
+		}
+		cpnbi__eof = 1;
+		return 0;
+	}
+	if (GetLastError() == ERROR_NO_DATA) {
+		return -1;
+	}
+	cpnbi__eof = 1;
+	return 0;
+}
+
+static int
+cpnbi__win_next_byte(void) {
+	unsigned char b;
+
+	if (cpnbi__pushback >= 0) {
+		int ch = cpnbi__pushback;
+
+		cpnbi__pushback = -1;
+		return ch;
+	}
+
+	if (cpnbi__win_try_read(&b) == 1) {
+		return b;
+	}
+	return CPNBI_EOF;
+}
+
+/* Non-consuming peek: report 1 and leave a byte in
+   cpnbi__pushback when data is immediately available; 0 if a
+   read would block (live, empty pipe) or the stream has ended
+   (cpnbi__win_byte_available() turns the EOF case into
+   "ready" so callers read once more).
+   A pipe is read in non-blocking mode (PIPE_NOWAIT); a
+   regular redirected file is read directly (it never blocks). */
+static int
+cpnbi__win_peek(void) {
+	unsigned char b;
+	DWORD n = 0;
+
+	if (cpnbi__pushback >= 0) {
+		return 1;
+	}
+
+	if (cpnbi__is_pipe) {
+		switch (cpnbi__win_try_read(&b)) {
+			case 1:
+				cpnbi__pushback = b;
+				return 1;
+			case -1:
+				return 0; /* empty but open: would block */
+			default:
+				cpnbi__eof = 1; /* closed pipe => EOF */
+				return 0;
+		}
+	}
+
+	if (ReadFile(hStdin, &b, 1, &n, NULL) && n == 1) {
+		cpnbi__pushback = b;
+		return 1;
+	}
+	cpnbi__eof = 1;
+	return 0;
+}
+
+static int
+cpnbi__win_more_available(void) {
+	return cpnbi__win_peek();
+}
+
+static int
+cpnbi__win_byte_available(void) {
+	if (cpnbi__eof) {
+		return 1;
+	}
+	cpnbi__win_peek();
+	return cpnbi__eof ? 1 : (cpnbi__pushback >= 0);
+}
+
 int
 cpnbi_is_char_available() {
-	return _kbhit();
+	if (cpnbi__is_console) {
+		return _kbhit();
+	}
+	return cpnbi__win_byte_available();
 }
 
 int
 cpnbi_is_event_available() {
-	DWORD count;
-	INPUT_RECORD record;
+	if (cpnbi__is_console) {
+		DWORD count;
+		INPUT_RECORD record;
 
-	PeekConsoleInput(hStdin, &record, 1, &count);
+		PeekConsoleInput(hStdin, &record, 1, &count);
 
-	if (count > 0) {
-		int32_t res = cpnbi__process_event(&record);
+		if (count > 0) {
+			int32_t res = cpnbi__process_event(&record);
 
-		if (res != 0) {
-			return 1;
-		} else {
-			ReadConsoleInput(hStdin, &record, 1, &count);
+			if (res != 0) {
+				return 1;
+			} else {
+				ReadConsoleInput(hStdin, &record, 1,
+				                &count);
+			}
 		}
-	}
 
-	return 0;
+		return 0;
+	}
+	return cpnbi__win_byte_available();
 }
 
 /* Raw byte read — the building block.
    Returns 0-255 on success. Blocking. */
 int32_t
 cpnbi_get_char() {
-	return _getch();
+	if (cpnbi__is_console) {
+		return _getch();
+	}
+	return cpnbi__win_next_byte();
 }
 
 /* Decoded event: handles VK codes on the Windows console
@@ -170,49 +305,62 @@ cpnbi_get_char() {
    U+FFFF. Returns a packed int32_t per the CPNBI bit layout. */
 int32_t
 cpnbi_get_event() {
-	DWORD count;
-	INPUT_RECORD record;
-	int32_t pending_high = 0;
+	if (cpnbi__is_console) {
+		DWORD count;
+		INPUT_RECORD record;
+		int32_t pending_high = 0;
 
-	while (1) {
-		ReadConsoleInput(hStdin, &record, 1, &count);
-		if (count == 0) {
-			continue;
-		}
-
-		int32_t res = cpnbi__process_event(&record);
-		if (res == 0) {
-			continue;
-		}
-
-		int32_t key = res & CPNBI_VALUE_MASK;
-
-		if (pending_high) {
-			if (key >= 0xDC00 && key <= 0xDFFF) {
-				int32_t cp = 0x10000
-				             + (pending_high - 0xD800) * 0x400
-				             + (key - 0xDC00);
-				pending_high = 0;
-				int32_t mod =
-				    (res >> CPNBI_MOD_OFFSET) & CPNBI_MOD_MASK;
-				return cp | (mod << CPNBI_MOD_OFFSET);
+		while (1) {
+			ReadConsoleInput(hStdin, &record, 1, &count);
+			if (count == 0) {
+				continue;
 			}
-			pending_high = 0;
-		}
 
-		if ((key & CPNBI_VALUE_MASK) >= 0xD800
-		    && (key & CPNBI_VALUE_MASK) <= 0xDBFF) {
-			pending_high = key;
-			continue;
-		}
+			int32_t res = cpnbi__process_event(&record);
+			if (res == 0) {
+				continue;
+			}
 
-		return res;
+			int32_t key = res & CPNBI_VALUE_MASK;
+
+			if (pending_high) {
+				if (key >= 0xDC00
+				    && key <= 0xDFFF) {
+					int32_t cp = 0x10000
+					             + (pending_high
+					                - 0xD800) * 0x400
+					             + (key - 0xDC00);
+					pending_high = 0;
+					int32_t mod =
+					    (res >> CPNBI_MOD_OFFSET)
+					    & CPNBI_MOD_MASK;
+					return cp
+					       | (mod << CPNBI_MOD_OFFSET);
+				}
+				pending_high = 0;
+			}
+
+			if ((key & CPNBI_VALUE_MASK) >= 0xD800
+			    && (key & CPNBI_VALUE_MASK)
+			           <= 0xDBFF) {
+				pending_high = key;
+				continue;
+			}
+
+			return res;
+		}
 	}
+	return cpnbi__decode_event(cpnbi__win_next_byte,
+	                           cpnbi__win_more_available, 0);
 }
 
 int32_t
 cpnbi_get_unicode() {
-	return cpnbi_get_event();
+	if (cpnbi__is_console) {
+		return cpnbi_get_event();
+	}
+	return cpnbi__decode_event(cpnbi__win_next_byte,
+	                           cpnbi__win_more_available, 1);
 }
 
 #else

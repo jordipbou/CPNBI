@@ -25,13 +25,14 @@ cmake --build build --target run_tests
 | I/O plumbing | `tests/test_pty_io.c` | Linux (pty) | Byte-level correctness of `cpnbi_is_char_available()`/`cpnbi_get_event()` against a real pty. Includes the regression test for the original dropped-byte bug (point 1). |
 | Termios lifecycle | `tests/test_termios_lifecycle.c` | Linux (pty) | Verifies `cpnbi_init()` puts the terminal into raw mode exactly once and `cpnbi_shutdown()` restores the original settings exactly (point 3). |
 | Signal handling | `tests/test_signal_handling.c` | Linux (pty + fork) | Verifies SIGINT/SIGTERM are caught and the terminal is restored before the process dies, even on abrupt termination (point 4). |
+| Redirected stdin | `tests/test_pipe_io_win.c` | Windows | Windows counterpart of `test_pipe_io.c`: a real anonymous pipe redirected onto the process standard-input handle, driving the same public API (`cpnbi_init()` must not touch console mode, `get_char`/`get_event`/`get_unicode` stream bytes and decode transparently, and at EOF they return `CPNBI_EOF`). `is_char_available`/`is_event_available` return 1 when a read won't block (including at EOF) and 0 only when a read would actually block on a live, empty pipe. |
 
 All of the above run headless and are CI-safe (no physical terminal or human interaction required) - they use either mocked input or a real pty created programmatically via `openpty()`.
 
 ### Requirements
 
 - A working `openpty()` (available on any normal Linux/macOS install and on GitHub Actions' `ubuntu-latest`/`macos-latest` runners). If `openpty()` fails in `setUp`, you'll get a clear assertion failure rather than a hang - this can happen in unusual sandboxed/containerized environments without pty support.
-- Windows-side logic (`cpnbi__process_event`) is now covered by `tests/test_process_event.c`, which drives it with constructed `INPUT_RECORD`s and runs on Windows via the WSL-built Windows binaries (`ctest` under `build/windows/*`). The pty/termios/signal/pipe suites remain Linux-only.
+- Windows-side logic (`cpnbi__process_event`) is covered by `tests/test_process_event.c`, which drives it with constructed `INPUT_RECORD`s and runs on Windows via the WSL-built Windows binaries (`ctest` under `build/windows/*`). Redirected (non-console) stdin on Windows is covered by `tests/test_pipe_io_win.c` via a real anonymous pipe. The pty/termios/signal suites remain Linux-only.
 
 ## Manual verification: Windows Ctrl+C / console-close handling
 
