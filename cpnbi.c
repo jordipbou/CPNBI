@@ -44,7 +44,7 @@ cpnbi_init() {
 /* Process a single INPUT_RECORD and return a packed event
    using the new bit layout. Does NOT handle surrogate pair
    assembly — that is done in cpnbi_get_event(). */
-static int32_t
+int32_t
 cpnbi__process_event(INPUT_RECORD* record) {
 	int mod = CPNBI_MOD_NONE;
 
@@ -338,6 +338,49 @@ int32_t cpnbi__decode_event(int (*next_byte)(void),
                             int utf8);
 static int cpnbi__escape_followup_available(void);
 
+static int
+cpnbi__escape_followup_available(void) {
+	int r = cpnbi__data_available();
+
+	if (r > 0) {
+		return 1;
+	}
+
+	if (r < 0) {
+		return 0;
+	}
+
+	/* No byte available yet: wait briefly for the rest of an
+	   escape sequence to arrive (terminal only - a pipe has
+	   all its bytes immediately or is already at EOF). */
+	{
+		fd_set fds;
+		struct timeval tv;
+
+		FD_ZERO(&fds);
+		FD_SET(STDIN_FILENO, &fds);
+		tv.tv_sec = 0;
+		tv.tv_usec = CPNBI_ESCAPE_TIMEOUT_USEC;
+
+		return select(STDIN_FILENO + 1, &fds, NULL, NULL, &tv)
+		       > 0;
+	}
+}
+
+int32_t
+cpnbi_get_event() {
+	return cpnbi__decode_event(
+	    cpnbi__getch, cpnbi__escape_followup_available, 0);
+}
+
+int32_t
+cpnbi_get_unicode() {
+	return cpnbi__decode_event(
+	    cpnbi__getch, cpnbi__escape_followup_available, 1);
+}
+
+#endif
+
 /* Decoded event: escape sequence decoder with optional
    UTF-8 support.  Returns packed int32_t per the CPNBI
    bit layout.
@@ -554,48 +597,6 @@ cpnbi__decode_event(int (*next_byte)(void),
 	return key | (mod << CPNBI_MOD_OFFSET);
 }
 
-static int
-cpnbi__escape_followup_available(void) {
-	int r = cpnbi__data_available();
-
-	if (r > 0) {
-		return 1;
-	}
-
-	if (r < 0) {
-		return 0;
-	}
-
-	/* No byte available yet: wait briefly for the rest of an
-	   escape sequence to arrive (terminal only - a pipe has
-	   all its bytes immediately or is already at EOF). */
-	{
-		fd_set fds;
-		struct timeval tv;
-
-		FD_ZERO(&fds);
-		FD_SET(STDIN_FILENO, &fds);
-		tv.tv_sec = 0;
-		tv.tv_usec = CPNBI_ESCAPE_TIMEOUT_USEC;
-
-		return select(STDIN_FILENO + 1, &fds, NULL, NULL, &tv)
-		       > 0;
-	}
-}
-
-int32_t
-cpnbi_get_event() {
-	return cpnbi__decode_event(
-	    cpnbi__getch, cpnbi__escape_followup_available, 0);
-}
-
-int32_t
-cpnbi_get_unicode() {
-	return cpnbi__decode_event(
-	    cpnbi__getch, cpnbi__escape_followup_available, 1);
-}
-
-#endif
 
 int32_t
 cpnbi_event_key(int32_t event) {

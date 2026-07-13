@@ -1,7 +1,13 @@
 #include <locale.h>
 #include <stdio.h>
 #include <string.h>
+#ifdef _WIN32
+#include <io.h>
+#define isatty _isatty
+#define STDOUT_FILENO _fileno(stdout)
+#else
 #include <unistd.h>
+#endif
 #include <wchar.h>
 
 #include "cpnbi.h"

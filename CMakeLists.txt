@@ -32,21 +32,39 @@ endif()
 add_executable(demo demo.c)
 target_link_libraries(demo cpnbi_lib)
 
-if (NOT WIN32)
+# Unit tests (enabled on every platform; individual targets
+# are guarded below by what their implementation can support)
+enable_testing()
 
-	# Unit tests
-	enable_testing()
+# Cross-platform: the decode state machine (cpnbi__decode_event)
+# and the shared event accessors are platform-agnostic, so the
+# decoder suite runs on both Linux and Windows.
+add_executable(test_decoder tests/test_decoder.c)
+target_link_libraries(test_decoder PRIVATE cpnbi_lib unity)
+add_test(NAME decoder COMMAND test_decoder)
+
+if (WIN32)
+
+	# Windows-only: exercises cpnbi__process_event() directly
+	# with constructed INPUT_RECORDs (no real console needed).
+	add_executable(test_process_event
+		tests/test_process_event.c)
+	target_link_libraries(test_process_event PRIVATE
+		cpnbi_lib
+		unity)
+	add_test(NAME process_event COMMAND test_process_event)
+
+else()
+
+	# Linux-only: these depend on POSIX facilities (pty,
+	# termios, signals, and byte-stream pipes) that have no
+	# portable Windows equivalent yet.
 
 	## Test PTY
 	add_executable(test_pty_io tests/test_pty_io.c)
 	target_link_libraries(test_pty_io PRIVATE 
 		cpnbi_lib unity util pthread)
 	add_test(NAME pty_io COMMAND test_pty_io)
-
-	## Test decoder
-	add_executable(test_decoder tests/test_decoder.c)
-	target_link_libraries(test_decoder PRIVATE cpnbi_lib unity)
-	add_test(NAME decoder COMMAND test_decoder)
 
 	## Test pipe (non-TTY) input
 	add_executable(test_pipe_io tests/test_pipe_io.c)
