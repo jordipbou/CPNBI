@@ -561,14 +561,30 @@ cpnbi__decode_event(int (*next_byte)(void),
 			return CPNBI_EOF;                                    \
 	} while (0)
 
+/* Timed variant used for the continuation bytes of an escape
+   sequence. Before reading, it probes with more_available()
+   (the same 25 ms timeout used to disambiguate a lone Esc).
+   If nothing more arrives it aborts the sequence: CPNBI_EOF
+   when the stream truly ended, otherwise CPNBI_KEY_ESCAPE
+   (treated as a lone Escape). This is what prevents an
+   incomplete sequence from blocking forever. */
+#define CPNBI_NB_T(x)                                       \
+	do {                                                     \
+		if (!more_available())                              \
+			return cpnbi__eof ? CPNBI_EOF                   \
+			                  : CPNBI_KEY_ESCAPE;           \
+		(x) = next_byte();                                  \
+		if ((x) < 0)                                        \
+			return CPNBI_EOF;                               \
+	} while (0)
+
 	CPNBI_NB(e);
 
 	if (e == 27 && more_available()) {
-		/* ANSI escape sequence (Linux only) */
-		CPNBI_NB(e);
+		CPNBI_NB_T(e);
 		switch (e) {
 			case 'O':
-				CPNBI_NB(e);
+				CPNBI_NB_T(e);
 				switch (e) {
 					case 'P': key = CPNBI_KEY_F1; break;
 					case 'Q': key = CPNBI_KEY_F2; break;
@@ -577,7 +593,7 @@ cpnbi__decode_event(int (*next_byte)(void),
 				}
 				break;
 			case '[':
-				CPNBI_NB(e);
+				CPNBI_NB_T(e);
 				switch (e) {
 					case 'A': key = CPNBI_KEY_UP; break;
 					case 'B': key = CPNBI_KEY_DOWN; break;
@@ -585,9 +601,9 @@ cpnbi__decode_event(int (*next_byte)(void),
 					case 'D': key = CPNBI_KEY_LEFT; break;
 					case 'H': key = CPNBI_KEY_HOME; break;
 					case 'F': key = CPNBI_KEY_END; break;
-					case '[':
-						CPNBI_NB(e);
-						switch (e) {
+				case '[':
+					CPNBI_NB_T(e);
+					switch (e) {
 							case 'A': key = CPNBI_KEY_F1; break;
 							case 'B': key = CPNBI_KEY_F2; break;
 							case 'C': key = CPNBI_KEY_F3; break;
@@ -608,9 +624,9 @@ cpnbi__decode_event(int (*next_byte)(void),
 							case '9': {
 								int num = e - '0';
 
-								while (1) {
-									CPNBI_NB(e);
-									if (e < '0' || e > '9') {
+							while (1) {
+								CPNBI_NB_T(e);
+								if (e < '0' || e > '9') {
 										break;
 									}
 									num = num * 10 + (e - '0');
@@ -682,7 +698,7 @@ cpnbi__decode_event(int (*next_byte)(void),
 										case 24: key = CPNBI_KEY_F12; break;
 									}
 
-									CPNBI_NB(mod);
+									CPNBI_NB_T(mod);
 									switch (mod) {
 										case '2': mod = CPNBI_MOD_SHIFT; break;
 										case '3': mod = CPNBI_MOD_ALT; break;
@@ -703,7 +719,7 @@ cpnbi__decode_event(int (*next_byte)(void),
 											break;
 									}
 
-									CPNBI_NB(e);
+									CPNBI_NB_T(e);
 									switch (e) {
 										case 'A': key = CPNBI_KEY_UP; break;
 										case 'B': key = CPNBI_KEY_DOWN; break;

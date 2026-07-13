@@ -190,6 +190,19 @@ test_lone_escape_still_resolves_correctly_with_timeout_in_place(
 	                      cpnbi_get_event());
 }
 
+/* A partial escape sequence (ESC [ with no terminator) must
+   time out and resolve to a lone Esc rather than block
+   forever. Exercises the real select()-based timeout path. */
+void
+test_partial_escape_via_pty_times_out(void) {
+	unsigned char partial[] = {27, '['};
+
+	type_bytes(partial, sizeof(partial));
+
+	TEST_ASSERT_EQUAL_INT(CPNBI_KEY_ESCAPE,
+	                      cpnbi_get_event());
+}
+
 int
 main(void) {
 	UNITY_BEGIN();
@@ -202,5 +215,6 @@ main(void) {
 	    test_delayed_escape_sequence_still_decoded_correctly);
 	RUN_TEST(
 	    test_lone_escape_still_resolves_correctly_with_timeout_in_place);
+	RUN_TEST(test_partial_escape_via_pty_times_out);
 	return UNITY_END();
 }

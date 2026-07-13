@@ -25,7 +25,6 @@ int32_t cpnbi__decode_event(int (*next_byte)(void),
 static const int* mock_bytes;
 static size_t mock_bytes_len;
 static size_t mock_bytes_idx;
-static int mock_more_available_value;
 
 static int
 mock_next_byte(void) {
@@ -42,19 +41,23 @@ mock_next_byte(void) {
 
 static int
 mock_more_available(void) {
-	return mock_more_available_value;
+	/* Length-aware: reports "more bytes waiting" only while
+	   scripted bytes remain. This models the real timeout
+	   probe (more_available() waits briefly, then reports
+	   no follow-up) and lets a scripted partial sequence
+	   (e.g. {ESC, '['}) be reported as "nothing more came". */
+	return mock_bytes_idx < mock_bytes_len;
 }
 
-/* Scripts the next decode call: bytes to feed via 
-	 next_byte(), and what more_available() should report 
-	 (only consulted right after a lone 27). */
+/* Scripts the next decode call: bytes to feed via next_byte().
+   (more_available() is derived from how many bytes remain.) */
 static void
 script(const int* bytes, size_t len,
        int more_available_value) {
+	(void)more_available_value;
 	mock_bytes = bytes;
 	mock_bytes_len = len;
 	mock_bytes_idx = 0;
-	mock_more_available_value = more_available_value;
 }
 
 void
@@ -85,6 +88,37 @@ test_lone_escape_key(void) {
 	script(
 	    bytes, 1,
 	    0); /* more_available() says "nothing more waiting" */
+	TEST_ASSERT_EQUAL_INT(
+	    CPNBI_KEY_ESCAPE,
+	    cpnbi__decode_event(mock_next_byte,
+	                        mock_more_available, 1));
+}
+
+/* --- Partial escape sequence (times out, must not block) --- */
+
+void
+test_partial_escape_times_out_to_lone_escape(void) {
+	static const int bytes[] = {27, '['};
+
+	/* ESC followed by '[' but nothing more: the next
+	   continuation read must time out and resolve to a
+	   lone Escape instead of blocking forever. */
+	script(bytes, 2, 1);
+	TEST_ASSERT_EQUAL_INT(
+	    CPNBI_KEY_ESCAPE,
+	    cpnbi__decode_event(mock_next_byte,
+	                        mock_more_available, 1));
+}
+
+void
+test_partial_escape_with_digits_times_out_to_lone_escape(
+    void) {
+	static const int bytes[] = {27, '[', '1'};
+
+	/* ESC [ 1 ... but the terminator never arrives: the
+	   sequence parser must time out mid-digit and resolve
+	   to a lone Escape. */
+	script(bytes, 3, 1);
 	TEST_ASSERT_EQUAL_INT(
 	    CPNBI_KEY_ESCAPE,
 	    cpnbi__decode_event(mock_next_byte,
@@ -552,10 +586,22 @@ test_decode_eof_in_utf8_continuation(void) {
 
 void
 test_decode_lone_escape_then_eof(void) {
-	static const int bytes[] = {27, -1};
-	script(bytes, 2, 0);
+	static const int esc[] = {27};
+	static const int eof[] = {-1};
+
+	/* A lone Esc (no follow-up byte) resolves to
+	   CPNBI_KEY_ESCAPE... */
+	script(esc, 1, 0);
 	TEST_ASSERT_EQUAL_INT(
 	    CPNBI_KEY_ESCAPE,
+	    cpnbi__decode_event(mock_next_byte,
+	                        mock_more_available, 1));
+
+	/* ...and a subsequent read at the end of the stream
+	   returns CPNBI_EOF. */
+	script(eof, 1, 0);
+	TEST_ASSERT_EQUAL_INT(
+	    CPNBI_EOF,
 	    cpnbi__decode_event(mock_next_byte,
 	                        mock_more_available, 1));
 }
@@ -625,6 +671,9 @@ main(void) {
 	RUN_TEST(test_plain_char_passes_through_unchanged);
 
 	RUN_TEST(test_lone_escape_key);
+	RUN_TEST(test_partial_escape_times_out_to_lone_escape);
+	RUN_TEST(
+	    test_partial_escape_with_digits_times_out_to_lone_escape);
 
 	RUN_TEST(test_arrow_up);
 	RUN_TEST(test_arrow_down);
